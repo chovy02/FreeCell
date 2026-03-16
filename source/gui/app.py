@@ -3,6 +3,7 @@ import sys
 import pygame
 from .asset_manager import CardLoader
 from .board_view import BoardView
+from core.state import State
 
 class App:
     def __init__(self):
@@ -21,6 +22,9 @@ class App:
 
         self.board_view = BoardView(self.deck)
 
+        self.state = State()
+        self.state.initialize_game()
+
     def run(self):
         while self.running:
             for event in pygame.event.get():
@@ -37,7 +41,7 @@ class App:
 
             self.screen.fill((0, 255, 0))
 
-            self.board_view.draw(self.screen, self.screen_width, self.screen_height)
+            self.board_view.draw(self.screen, self.screen_width, self.screen_height, self.state)
 
             pygame.display.flip()
 

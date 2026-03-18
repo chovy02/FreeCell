@@ -1,3 +1,4 @@
+#gui/asset_manager.py
 import pygame
 import os
 

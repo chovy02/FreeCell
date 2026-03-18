@@ -4,6 +4,7 @@ import pygame
 from .asset_manager import CardLoader
 from .board_view import BoardView
 from core.state import State
+from .game_controller import GameController
 
 class App:
     def __init__(self):
@@ -25,6 +26,8 @@ class App:
         self.state = State()
         self.state.initialize_game()
 
+        self.game_controller = GameController()
+
     def run(self):
         while self.running:
             for event in pygame.event.get():
@@ -39,9 +42,20 @@ class App:
                     self.screen_width = event.w
                     self.screen_height = event.h
 
+                if event.type in [pygame.MOUSEBUTTONDOWN, pygame.MOUSEMOTION, pygame.MOUSEBUTTONUP]:
+                    self.game_controller.handle_event(event, self.state, self.board_view)
+
             self.screen.fill((0, 255, 0))
 
             self.board_view.draw(self.screen, self.screen_width, self.screen_height, self.state)
+
+            #Draw dragged card on top of everything else
+            if self.game_controller.dragging_cards:
+                img_key = (self.game_controller.dragging_cards[0].rank, self.game_controller.dragging_cards[0].suit)
+                if img_key in self.deck:
+                    card_img = self.deck[img_key]
+                    card_rect = card_img.get_rect(topleft=self.game_controller.drag_pos)
+                    self.screen.blit(card_img, card_rect)
 
             pygame.display.flip()
 

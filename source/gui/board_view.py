@@ -28,12 +28,14 @@ class BoardView:
         start_x = (screen_width - total_cascades_width) // 2
         start_y = 220
 
+        self.hitbox['cascades'] = [[] for _ in range(8)]
+
         for i, cascade in enumerate(state.cascades):
             col_x = start_x + i * (self.card_width + self.spacing)
 
             if len(cascade) == 0:
                 empty_rect = pygame.Rect(col_x, start_y, self.card_width, self.card_height)
-                self.hitbox['cascades'][i] = empty_rect
+                self.hitbox['cascades'][i].append(empty_rect)
 
             else:
                 for j, card in enumerate(cascade):
@@ -45,9 +47,8 @@ class BoardView:
                         card_rect = card_img.get_rect(topleft=(col_x, card_y))
                         screen.blit(card_img, card_rect)
 
-                    if j == len(cascade) - 1:
-                        self.hitbox['cascades'][i] = card_rect
-
+                        self.hitbox['cascades'][i].append(card_rect)
+                        
     def draw_top_area(self, screen, screen_width, state):
         #Draw free cells and foundations
         center_gap = 80

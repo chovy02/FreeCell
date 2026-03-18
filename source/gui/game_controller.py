@@ -20,14 +20,26 @@ class GameController:
             self._handle_mouse_up(event.pos, state, board_view)
 
     def _handle_mouse_down(self, mouse_pos, state, board_view):
-        for i, rect in enumerate(board_view.hitbox['cascades']):
-            if rect and rect.collidepoint(mouse_pos):
-                if len(state.cascades[i]) > 0:
-                    card = state.cascades[i].pop()
-                    self.dragging_cards = [card]
-                    self.source_location = ('cascade', i)
-                    self.mouse_offset = (rect.x - mouse_pos[0], rect.y - mouse_pos[1])
-                    self.drag_pos = (rect.x, rect.y)
+        for i, cascade_rects in enumerate(board_view.hitbox['cascades']):
+            cascade = state.cascades[i]
+            if len(cascade) == 0:
+                continue
+            
+            for j in range(len(cascade_rects) - 1, -1, -1):
+                rect = cascade_rects[j]
+
+                if rect and rect.collidepoint(mouse_pos):
+                    moving_cards = cascade[j:]
+                    if Rules.is_valid_sequence(moving_cards) and len(moving_cards) <= Rules.max_movable_cards(state):
+                        self.dragging_cards = moving_cards
+                        
+                        #Remove cards from cascade
+                        state.cascades[i] = cascade[:j]
+
+                        self.source_location = ('cascade', i)
+                        self.mouse_offset = (rect.x - mouse_pos[0], rect.y - mouse_pos[1])
+                        self.drag_pos = (rect.x, rect.y)
+
                     return
                 
         for i, rect in enumerate(board_view.hitbox['free_cells']):
@@ -53,8 +65,11 @@ class GameController:
         dropped = False
 
         if not dropped:
-            for i, rect in enumerate(board_view.hitbox['cascades']):
-                if rect and rect.collidepoint(mouse_pos):
+            for i, cascade_rects in enumerate(board_view.hitbox['cascades']):
+
+                target_rect = cascade_rects[-1] if cascade_rects else None
+
+                if target_rect and target_rect.collidepoint(mouse_pos):
                     if self.source_location == ('cascade', i):
                         self._return_card_to_source(state)
                         dropped = True

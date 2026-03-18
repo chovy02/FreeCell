@@ -50,12 +50,17 @@ class App:
             self.board_view.draw(self.screen, self.screen_width, self.screen_height, self.state)
 
             #Draw dragged card on top of everything else
-            if self.game_controller.dragging_cards:
-                img_key = (self.game_controller.dragging_cards[0].rank, self.game_controller.dragging_cards[0].suit)
-                if img_key in self.deck:
-                    card_img = self.deck[img_key]
-                    card_rect = card_img.get_rect(topleft=self.game_controller.drag_pos)
-                    self.screen.blit(card_img, card_rect)
+            if len(self.game_controller.dragging_cards) > 0:
+                for i, card in enumerate(self.game_controller.dragging_cards):
+                    img_key = (card.rank, card.suit)
+                    if img_key in self.deck:
+                        card_img = self.deck[img_key]
+
+                        draw_x = self.game_controller.drag_pos[0]
+                        draw_y = self.game_controller.drag_pos[1] + (i * self.board_view.vertical_spacing)
+
+                        card_rect = card_img.get_rect(topleft=(draw_x, draw_y))
+                        self.screen.blit(card_img, card_rect)
 
             pygame.display.flip()
 

@@ -27,7 +27,7 @@ class App:
         loader = CardLoader()
         self.deck = loader.load_cards()
 
-        self.board_view = BoardView(self.deck)
+        self.board_view = BoardView(self.deck, self.theme)
 
         self.state = State()
         self.state.initialize_game()

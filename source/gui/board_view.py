@@ -2,8 +2,9 @@
 import pygame
 
 class BoardView:
-    def __init__(self, deck):
+    def __init__(self, deck, theme):
         self.deck = deck
+        self.theme = theme
 
         self.card_width = 100
         self.card_height = 140
@@ -17,11 +18,26 @@ class BoardView:
             'cascades': [None] * 8
         }
 
+        if self.theme:
+            self.theme.load_ui_elements(self.card_width, self.card_height)
+
 
     def draw_empty_slot(self, screen, x, y):
         rect = pygame.Rect(x, y, self.card_width, self.card_height)
         pygame.draw.rect(screen, (0, 100, 0), rect, border_radius=8)
         pygame.draw.rect(screen, (150, 150, 150), rect, width=2, border_radius=8)
+
+    def draw_freecell_slot(self, screen, x, y):
+        if self.theme and self.theme.freecell_img:
+            screen.blit(self.theme.freecell_img, (x, y))
+        else:
+            self.draw_empty_slot(screen, x, y)
+
+    def draw_foundation_slot(self, screen, x, y, suit):
+        if self.theme and self.theme.foundation_img.get(suit):
+            screen.blit(self.theme.foundation_img[suit], (x, y))
+        else:
+            self.draw_empty_slot(screen, x, y)
 
     def draw_cascades(self, screen, screen_width, state):
         total_cascades_width = (8 * self.card_width) + (7 * self.spacing)
@@ -63,7 +79,7 @@ class BoardView:
         # Draw free cells
         for i in range(4):
             col_x = start_x + i * (self.card_width + self.spacing)
-            self.draw_empty_slot(screen, col_x, start_y)
+            self.draw_freecell_slot(screen, col_x, start_y)
             card = state.free_cells[i]
 
             rect = pygame.Rect(col_x, start_y, self.card_width, self.card_height)
@@ -81,7 +97,7 @@ class BoardView:
         suits = ['hearts', 'diamonds', 'clubs', 'spades']
         for i in range(4):
             col_x = foundation_start_x + i * (self.card_width + self.spacing)
-            self.draw_empty_slot(screen, col_x, start_y)
+            self.draw_foundation_slot(screen, col_x, start_y, suits[i])
 
             rect = pygame.Rect(col_x, start_y, self.card_width, self.card_height)
             self.hitbox['foundations'][i] = rect

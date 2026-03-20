@@ -5,6 +5,7 @@ from .asset_manager import CardLoader
 from .board_view import BoardView
 from core.state import State
 from .game_controller import GameController
+from .theme_manager import ThemeManager
 from solvers.A_star import AStarSolver # Thêm dòng Import này
 
 class App:
@@ -17,6 +18,10 @@ class App:
         self.screen_height = self.screen.get_height()
 
         self.clock = pygame.time.Clock()
+
+        self.theme = ThemeManager()
+        self.theme.load_background("background.png", self.screen_width, self.screen_height)
+
         self.running = True
 
         loader = CardLoader()
@@ -72,6 +77,7 @@ class App:
                 if event.type == pygame.VIDEORESIZE:
                     self.screen_width = event.w
                     self.screen_height = event.h
+                    self.theme.resize_background(self.screen_width, self.screen_height)
 
                 if event.type in [pygame.MOUSEBUTTONDOWN, pygame.MOUSEMOTION, pygame.MOUSEBUTTONUP]:
                     # Chặn người chơi thao tác khi hệ thống đang giải
@@ -86,7 +92,7 @@ class App:
                     self.apply_auto_move(next_move)
                     self.last_move_time = current_time
 
-            self.screen.fill((0, 255, 0))
+            self.theme.draw_background(self.screen)
             self.board_view.draw(self.screen, self.screen_width, self.screen_height, self.state)
 
             # Draw dragged card on top of everything else

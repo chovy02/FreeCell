@@ -83,7 +83,7 @@ class AStarSolver:
             if founds[suit_idx] == val - 1:
                 nf = list(founds); nf[suit_idx] += 1
                 nfc = list(fc); nfc[i] = None
-                moves.append((make_child(nf, nfc, cascs), ('f_found', i, suit, 1)))
+                moves.append((make_child(nf, nfc, cascs), ('freecell', i, 'foundation', suit, 1)))
 
             # → cascade
             for j, cascade in enumerate(cascs):
@@ -91,14 +91,14 @@ class AStarSolver:
                     nfc = list(fc); nfc[i] = None
                     nc = [list(c) for c in cascs]
                     nc[j].append(card)
-                    moves.append((make_child(founds, nfc, nc), ('f_c', i, j, 1)))
+                    moves.append((make_child(founds, nfc, nc), ('freecell', i, 'cascade', j, 1)))
                 else:
                     t = cascade[-1]
                     if color != t[2] and val == self.rank_vals[t[0]] - 1:
                         nfc = list(fc); nfc[i] = None
                         nc = [list(c) for c in cascs]
                         nc[j].append(card)
-                        moves.append((make_child(founds, nfc, nc), ('f_c', i, j, 1)))
+                        moves.append((make_child(founds, nfc, nc), ('freecell', i, 'cascade', j, 1)))
 
         # ===== CASCADE =====
         for i, cascade in enumerate(cascs):
@@ -114,7 +114,7 @@ class AStarSolver:
                 nf = list(founds); nf[suit_idx] += 1
                 nc = [list(c) for c in cascs]
                 nc[i].pop()
-                moves.append((make_child(nf, fc, nc), ('c_found', i, b[1], 1)))
+                moves.append((make_child(nf, fc, nc), ('cascade', i, 'foundation', b[1], 1)))
 
             # → freecell
             if empty_fc > 0:
@@ -123,7 +123,7 @@ class AStarSolver:
                         nfc = list(fc); nfc[f_idx] = b
                         nc = [list(c) for c in cascs]
                         nc[i].pop()
-                        moves.append((make_child(founds, nfc, nc), ('c_f', i, f_idx, 1)))
+                        moves.append((make_child(founds, nfc, nc), ('cascade', i, 'freecell', f_idx, 1)))
                         break
 
             # sequence detection
@@ -148,7 +148,7 @@ class AStarSolver:
                         moving = nc[i][-max_p:]
                         nc[i] = nc[i][:-max_p]
                         nc[j].extend(moving)
-                        moves.append((make_child(founds, fc, nc), ('c_c', i, j, max_p)))
+                        moves.append((make_child(founds, fc, nc), ('cascade', i, 'cascade', j, max_p)))
                 else:
                     t = target[-1]
                     for p in range(1, max_p + 1):
@@ -158,7 +158,7 @@ class AStarSolver:
                             moving = nc[i][-p:]
                             nc[i] = nc[i][:-p]
                             nc[j].extend(moving)
-                            moves.append((make_child(founds, fc, nc), ('c_c', i, j, p)))
+                            moves.append((make_child(founds, fc, nc), ('cascade', i, 'cascade', j, p)))
                             break
 
         return moves

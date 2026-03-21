@@ -43,7 +43,10 @@ class AIScreen:
         self.solver_info = result
         if result['solved']:
             self.state = self.initial_state.clone()
-            self.player.start(self.initial_state, result['moves'])
+            
+            # Kiểm tra xem có phải A* không để báo cho Player
+            is_astar = (result.get('algorithm') == 'A*')
+            self.player.start(self.initial_state, result['moves'], is_astar=is_astar)
 
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
@@ -87,6 +90,10 @@ class AIScreen:
         # Update solver_info status
         if self.solver.solving:
             self.solver_info = self.solver.get_status()
+            
+            # THÊM DÒNG NÀY: 
+            # Ép luồng UI ngủ 50ms (mili-giây) mỗi vòng lặp để nhường CPU cho A*
+            pygame.time.wait(50)
 
     def draw(self, screen, width, height):
         self.theme.draw_background(screen)

@@ -46,7 +46,7 @@ class SolverRunner:
                     _, peak = tracemalloc.get_traced_memory()
                     tracemalloc.stop()
 
-                    converted = [self._convert_astar(m) for m in astar_moves]
+                    converted = astar_moves
                     result = {
                         'solved': len(astar_moves) > 0,
                         'moves': converted,
@@ -94,17 +94,3 @@ class SolverRunner:
             'time': 0, 'memory_mb': 0,
             'expanded': 0, 'solution_length': 0
         }
-
-    @staticmethod
-    def _convert_astar(move):
-        """Convert A* move format to move_generator format."""
-        m_type, src, dst, count = move
-        mapping = {
-            'c_c': ('cascade', 'cascade'),
-            'c_found': ('cascade', 'foundation'),
-            'c_f': ('cascade', 'freecell'),
-            'f_c': ('freecell', 'cascade'),
-            'f_found': ('freecell', 'foundation'),
-        }
-        src_type, dst_type = mapping.get(m_type, ('cascade', 'cascade'))
-        return (src_type, src, dst_type, dst, count)

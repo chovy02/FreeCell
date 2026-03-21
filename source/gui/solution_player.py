@@ -1,3 +1,4 @@
+import copy
 # gui/solution_player.py
 """Animates solver solution moves on the board."""
 
@@ -14,10 +15,16 @@ class SolutionPlayer:
         self.move_log = []       # human-readable log
         self.initial_state = None
 
-    def start(self, initial_state, solver_moves):
+    def start(self, initial_state, solver_moves, is_astar=False):
         """Compute animation steps and start playback."""
         self.initial_state = initial_state.clone()
-        self.steps = compute_animation_steps(initial_state, solver_moves)
+        
+        # Nếu là A*, dùng thẳng kết quả (không qua auto_move nữa)
+        if is_astar:
+            self.steps = solver_moves
+        else:
+            self.steps = compute_animation_steps(initial_state, solver_moves)
+            
         self.current_step = 0
         self.playing = True
         self.timer = 0

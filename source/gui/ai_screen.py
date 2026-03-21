@@ -54,6 +54,8 @@ class AIScreen:
                 self._run_solver('bfs')
             elif event.key == pygame.K_d:
                 self._run_solver('dfs')
+            elif event.key == pygame.K_u:
+                self._run_solver('ucs')
             elif event.key == pygame.K_a:
                 self._run_solver('astar')
             elif event.key == pygame.K_r:
@@ -66,6 +68,8 @@ class AIScreen:
                         self._run_solver('bfs')
                     elif key == 'dfs':
                         self._run_solver('dfs')
+                    elif key == 'ucs':
+                        self._run_solver('ucs')
                     elif key == 'astar':
                         self._run_solver('astar')
                     elif key == 'reset':
@@ -105,6 +109,7 @@ class AIScreen:
         buttons = [
             ('BFS [B]', 'bfs', (50, 90, 160)),
             ('DFS [D]', 'dfs', (50, 140, 80)),
+            ('UCS [U]', 'ucs', (140, 50, 160)),
             ('A*  [A]', 'astar', (180, 90, 40)),
             ('Reset[R]', 'reset', (130, 100, 40)),
             ('Menu', 'menu', (100, 60, 110)),
@@ -132,7 +137,7 @@ class AIScreen:
     def _draw_info_panel(self, screen, width, height):
         info = self.solver_info
         if not info:
-            hint = "B=BFS D=DFS A=A* R=Reset"
+            hint = "B=BFS D=DFS U=UCS A=A* R=Reset"
             txt = self.font.render(hint, True, (180, 180, 180))
             screen.blit(txt, (width // 2 - txt.get_width() // 2, height - 90))
             return

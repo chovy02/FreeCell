@@ -34,6 +34,10 @@ class SolverRunner:
                     from solvers.DFS import solve_dfs
                     result = solve_dfs(solve_state, depth_limit=300, node_limit=2_000_000)
 
+                elif algorithm == 'ucs':
+                    from solvers.UCS import solve_ucs
+                    result = solve_ucs(solve_state, node_limit=500_000)
+
                 elif algorithm == 'astar':
                     from solvers.A_star import AStarSolver
                     solver = AStarSolver(solve_state)

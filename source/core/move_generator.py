@@ -15,7 +15,7 @@ def _opp_suits(suit):
 
 def is_safe_auto(state, card):
     val = RV[card.rank]
-    if val <= 2:
+    if val <= 1:
         return True
     for s in _opp_suits(card.suit):
         if len(state.foundations[s]) < val - 1:

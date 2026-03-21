@@ -3,7 +3,7 @@ import pygame
 from .board_view import BoardView
 from .game_controller import GameController
 from core.state import State
-
+from .manual_animator import ManualAnimator # THÊM DÒNG NÀY
 
 class ManualScreen:
     def __init__(self, deck, theme, state):
@@ -14,23 +14,15 @@ class ManualScreen:
 
         self.board_view = BoardView(deck, theme)
         self.controller = GameController()
+        self.animator = ManualAnimator() # THÊM DÒNG NÀY
 
-        # Undo history
         self.history = []
         self._save_state()
-
-        # Invalid move notification
         self.invalid_msg = ""
         self.invalid_timer = 0
-
-        # Win state
         self.won = False
-
-        # Fonts
         self.font = pygame.font.SysFont('consolas', 16)
         self.font_big = pygame.font.SysFont('consolas', 42, bold=True)
-
-        # Button rects
         self.btn_rects = {}
 
     def _save_state(self):
@@ -48,77 +40,93 @@ class ManualScreen:
 
     def _show_invalid(self, msg):
         self.invalid_msg = msg
-        self.invalid_timer = 120  # 2 seconds at 60fps
+        self.invalid_timer = 120
 
     def _hint(self):
-        """Simple hint: find first valid move and show it."""
         from core.move_generator import get_valid_moves
         moves = get_valid_moves(self.state)
         if moves:
             src_type, src_idx, dst_type, dst_idx, num = moves[0]
             src = f"Col {src_idx+1}" if src_type == 'cascade' else f"FC {src_idx+1}"
-            if dst_type == 'cascade':
-                dst = f"Col {dst_idx+1}"
-            elif dst_type == 'freecell':
-                dst = f"FC {dst_idx+1}"
-            else:
-                dst = "Foundation"
+            if dst_type == 'cascade': dst = f"Col {dst_idx+1}"
+            elif dst_type == 'freecell': dst = f"FC {dst_idx+1}"
+            else: dst = "Foundation"
             self._show_invalid(f"Hint: {src} -> {dst}")
         else:
             self._show_invalid("No valid moves!")
 
+    def _check_auto_foundation(self):
+        """Kiểm tra và kích hoạt animation bài TỰ ĐỘNG bay lên foundation (Tạo chuỗi phản ứng dây chuyền)"""
+        from core.move_generator import _can_fnd
+        suits_order = ['hearts', 'diamonds', 'clubs', 'spades']
+        
+        for i, cascade in enumerate(self.state.cascades):
+            if cascade and _can_fnd(self.state, cascade[-1]):
+                card = cascade.pop()
+                rects = self.board_view.hitbox['cascades'][i]
+                start_pos = rects[-1].topleft if rects else (0,0)
+                fnd_idx = suits_order.index(card.suit)
+                end_pos = self.board_view.hitbox['foundations'][fnd_idx].topleft
+                
+                def apply(c=card): self.state.foundations[c.suit].append(c)
+                self.animator.add_animation([card], start_pos, end_pos, apply, on_complete=self._check_auto_foundation)
+                return
+                
+        for i, card in enumerate(self.state.free_cells):
+            if card and _can_fnd(self.state, card):
+                self.state.free_cells[i] = None
+                start_pos = self.board_view.hitbox['free_cells'][i].topleft
+                fnd_idx = suits_order.index(card.suit)
+                end_pos = self.board_view.hitbox['foundations'][fnd_idx].topleft
+                
+                def apply(c=card): self.state.foundations[c.suit].append(c)
+                self.animator.add_animation([card], start_pos, end_pos, apply, on_complete=self._check_auto_foundation)
+                return
+                
+        # Nếu dây chuyền tự bay đã dừng (hoặc không có lá nào bay) thì kiểm tra để lưu trạng thái Undo
+        if len(self.history) == 0 or self.state.get_key() != self.history[-1].get_key():
+            self._save_state()
+            if self.state.is_goal():
+                self.won = True
+
     def handle_event(self, event):
+        # KHÓA tát cả input để tránh người chơi spam click khi bài đang bay
+        if self.animator.is_animating():
+            return None
+
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_ESCAPE:
-                return "MENU"
-            elif event.key == pygame.K_z:
-                self._undo()
-            elif event.key == pygame.K_r:
-                self._reset()
-            elif event.key == pygame.K_h:
-                self._hint()
+            if event.key == pygame.K_ESCAPE: return "MENU"
+            elif event.key == pygame.K_z: self._undo()
+            elif event.key == pygame.K_r: self._reset()
+            elif event.key == pygame.K_h: self._hint()
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             for key, rect in self.btn_rects.items():
                 if rect.collidepoint(event.pos):
-                    if key == 'undo':
-                        self._undo()
-                    elif key == 'reset':
-                        self._reset()
-                    elif key == 'hint':
-                        self._hint()
-                    elif key == 'menu':
-                        return "MENU"
+                    if key == 'undo': self._undo()
+                    elif key == 'reset': self._reset()
+                    elif key == 'hint': self._hint()
+                    elif key == 'menu': return "MENU"
                     return None
 
-        # Drag and drop
         if not self.won:
-            old_key = self.state.get_key()
             if event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEMOTION, pygame.MOUSEBUTTONUP):
-                self.controller.handle_event(event, self.state, self.board_view)
-
-            # Check if state changed (valid move was made)
-            if event.type == pygame.MOUSEBUTTONUP and self.state.get_key() != old_key:
-                # SỬA LỖI UNDO: Tránh lưu trùng lặp nếu thao tác thả bài bị hủy (trở về chỗ cũ)
-                if self.state.get_key() != self.history[-1].get_key():
-                    
-                    # Cải thiện Undo: Thực hiện auto-foundation TRƯỚC khi save
-                    # Để khi người chơi nhấn Undo, nó sẽ trả về trạng thái nguyên mảng mượt mà hơn
-                    from core.move_generator import auto_to_foundation
-                    auto_to_foundation(self.state)
-                    
-                    self._save_state()
-                    
-                    if self.state.is_goal():
-                        self.won = True
+                # Truyền hàm _check_auto_foundation vào để gọi SAU KHI bay thành công
+                self.controller.handle_event(event, self.state, self.board_view, self.animator, on_move_complete=self._check_auto_foundation)
 
         return None
 
     def draw(self, screen, width, height):
+        self.animator.update() # Update logic bay liên tục
+
         self.theme.draw_background(screen)
         self.board_view.draw_board(screen, width, height, self.state)
         self._draw_buttons(screen, width, height)
         self._draw_dragging(screen)
+        
+        # Vẽ thẻ bài đang trong trạng thái animaton ĐÈ LÊN MỌI THỨ
+        self.animator.draw(screen, self.deck, self.board_view.vertical_spacing)
+        
         self._draw_notification(screen, width, height)
 
         if self.won:

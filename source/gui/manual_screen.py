@@ -99,12 +99,18 @@ class ManualScreen:
 
             # Check if state changed (valid move was made)
             if event.type == pygame.MOUSEBUTTONUP and self.state.get_key() != old_key:
-                self._save_state()
-                # Auto-foundation
-                from core.move_generator import auto_to_foundation
-                auto_to_foundation(self.state)
-                if self.state.is_goal():
-                    self.won = True
+                # SỬA LỖI UNDO: Tránh lưu trùng lặp nếu thao tác thả bài bị hủy (trở về chỗ cũ)
+                if self.state.get_key() != self.history[-1].get_key():
+                    
+                    # Cải thiện Undo: Thực hiện auto-foundation TRƯỚC khi save
+                    # Để khi người chơi nhấn Undo, nó sẽ trả về trạng thái nguyên mảng mượt mà hơn
+                    from core.move_generator import auto_to_foundation
+                    auto_to_foundation(self.state)
+                    
+                    self._save_state()
+                    
+                    if self.state.is_goal():
+                        self.won = True
 
         return None
 

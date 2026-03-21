@@ -43,10 +43,10 @@ class AIScreen:
         self.solver_info = result
         if result['solved']:
             self.state = self.initial_state.clone()
-            
             # Kiểm tra xem có phải A* không để báo cho Player
             is_astar = (result.get('algorithm') == 'A*')
             self.player.start(self.initial_state, result['moves'], is_astar=is_astar)
+            
 
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
@@ -85,7 +85,7 @@ class AIScreen:
 
     def update(self):
         if self.player.playing:
-            self.player.update(self.state)
+            self.player.update(self.state, self.board_view)
 
         # Update solver_info status
         if self.solver.solving:
@@ -98,10 +98,13 @@ class AIScreen:
     def draw(self, screen, width, height):
         self.theme.draw_background(screen)
         self.board_view.draw_board(screen, width, height, self.state)
+
+        self.player.draw(screen, self.deck, self.board_view)
+
         self._draw_buttons(screen, width, height)
         self._draw_info_panel(screen, width, height)
         self._draw_move_log(screen, width, height)
-
+        
         if self.solver.solving:
             self._draw_overlay(screen, width, height, "Solving...", (255, 255, 100))
         elif self.state.is_goal() and not self.player.playing:

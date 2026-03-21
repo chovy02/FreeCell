@@ -1,55 +1,52 @@
-# gui/menuview.py
+# gui/menu_view.py
 import pygame
+
 
 class MenuView:
     def __init__(self, theme, width, height):
         self.theme = theme
         self.font_title = pygame.font.SysFont('Arial', 64, bold=True)
-        self.font_button = pygame.font.SysFont('Arial', 32)
+        self.font_sub = pygame.font.SysFont('Arial', 22)
+        self.font_btn = pygame.font.SysFont('Arial', 30)
 
-        # Define button locations
         self.rect_manual = None
-        self.rect_bfs = None
-
-        # Update layout
+        self.rect_ai = None
         self.update_layout(width, height)
 
     def update_layout(self, width, height):
         self.width = width
         self.height = height
-
-        btn_width, btn_height = 300, 60
-        center_x = (width - btn_width) // 2
-
-        self.rect_manual = pygame.Rect(center_x, 350, btn_width, btn_height)
-        self.rect_bfs = pygame.Rect(center_x, 450, btn_width, btn_height)
+        btn_w, btn_h = 320, 60
+        cx = (width - btn_w) // 2
+        self.rect_manual = pygame.Rect(cx, 350, btn_w, btn_h)
+        self.rect_ai = pygame.Rect(cx, 440, btn_w, btn_h)
 
     def handle_event(self, event):
-        # Return mode name
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            if self.rect_manual.collidepoint(event.pos):
-                return 'MANUAL'
-            elif self.rect_bfs.collidepoint(event.pos):
-                return 'BFS'
-            
+            if self.rect_manual and self.rect_manual.collidepoint(event.pos):
+                return "MANUAL"
+            if self.rect_ai and self.rect_ai.collidepoint(event.pos):
+                return "AI"
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            return "QUIT"
         return None
-    
+
+    def _draw_btn(self, screen, rect, text, color):
+        mouse = pygame.mouse.get_pos()
+        c = tuple(min(v + 25, 255) for v in color) if rect.collidepoint(mouse) else color
+        pygame.draw.rect(screen, c, rect, border_radius=12)
+        pygame.draw.rect(screen, (255, 255, 255, 60), rect, width=1, border_radius=12)
+        txt = self.font_btn.render(text, True, (255, 255, 255))
+        screen.blit(txt, txt.get_rect(center=rect.center))
+
     def draw(self, screen):
-        # Draw menu
         self.theme.draw_background(screen)
 
-        # Draw title
-        title_text = self.font_title.render("FreeCell Solitaire", True, (255, 255, 255))
-        title_rect = title_text.get_rect(center=(self.width // 2, 200))
-        screen.blit(title_text, title_rect)
+        title = self.font_title.render("FreeCell Solitaire", True, (255, 255, 255))
+        screen.blit(title, title.get_rect(center=(self.width // 2, 190)))
 
-        # Draw buttons
-        pygame.draw.rect(screen, (40, 120, 255), self.rect_manual, border_radius = 10)
-        pygame.draw.rect(screen, (255, 100, 40), self.rect_bfs, border_radius = 10)
+        sub = self.font_sub.render("Choose a mode to start", True, (200, 200, 200))
+        screen.blit(sub, sub.get_rect(center=(self.width // 2, 260)))
 
-        # Draw text on buttons
-        text_manual = self.font_button.render("New Game (Manual)", True, (255, 255, 255))
-        text_bfs = self.font_button.render("Auto Game (BFS)", True, (255, 255, 255))
-
-        screen.blit(text_manual, text_manual.get_rect(center=self.rect_manual.center))
-        screen.blit(text_bfs, text_bfs.get_rect(center=self.rect_bfs.center))
+        self._draw_btn(screen, self.rect_manual, "Manual Play", (40, 120, 255))
+        self._draw_btn(screen, self.rect_ai, "AI Auto Solve", (180, 90, 40))

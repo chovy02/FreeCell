@@ -1,6 +1,7 @@
 #core/state.py
 import random
 from .card import Card
+from utils.dealer import Dealer
 
 class State:
     SUITS = ['hearts', 'diamonds', 'clubs', 'spades']
@@ -10,19 +11,21 @@ class State:
         self.free_cells = [None] * 4
         self.foundations = {'hearts': [], 'diamonds': [], 'clubs': [], 'spades': []}
 
-    def initialize_game(self):
-        suits = ['hearts', 'diamonds', 'clubs', 'spades']
-        ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
-        deck = [Card(rank, suit) for suit in suits for rank in ranks]
-        random.shuffle(deck)
-        for i in range(4):
-            for j in range(7):
-                if deck:
-                    self.cascades[i].append(deck.pop())
-        for i in range(4, 8):
-            for j in range(6):
-                if deck:
-                    self.cascades[i].append(deck.pop())
+    def initialize_game(self, seed):
+        # Reset
+        self.cascades = [[] for _ in range(8)]
+        self.free_cells = [None] * 4
+        self.foundations = {'hearts': [], 'diamonds': [], 'clubs': [], 'spades': []}
+        
+        deck = Dealer.get_deck(seed)
+
+        self.initial_deck = deck # Save for reset
+
+        for i, card_data in enumerate(deck):
+            col_index = i % 8
+            rank, suit = card_data
+            card = Card(rank, suit)
+            self.cascades[col_index].append(card)
 
     def clone(self):
         new = State.__new__(State)
@@ -42,3 +45,15 @@ class State:
 
     def foundation_count(self):
         return sum(len(self.foundations[s]) for s in self.SUITS)
+    
+    def reset_to_start(self):
+        #Reset the state
+        self.cascades = [[] for _ in range(8)]
+        self.free_cells = [None] * 4
+        self.foundations = {'hearts': [], 'diamonds': [], 'clubs': [], 'spades': []}
+        
+        # Use the saved deck
+        for i, card_data in enumerate(self.initial_deck):
+            col_index = i % 8
+            rank, suit = card_data
+            self.cascades[col_index].append(Card(rank, suit))

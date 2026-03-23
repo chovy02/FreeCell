@@ -209,14 +209,29 @@ def compute_animation_steps(initial_state, solver_moves):
     return steps
 
 
+# def describe_move(move):
+#     src_type, src_idx, dst_type, dst_idx, num = move
+#     sym = {'hearts': 'H', 'diamonds': 'D', 'clubs': 'C', 'spades': 'S'}
+#     src = f"C{src_idx+1}" if src_type == 'cascade' else f"FC{src_idx+1}"
+#     if dst_type == 'cascade':
+#         dst = f"C{dst_idx+1}"
+#     elif dst_type == 'freecell':
+#         dst = f"FC{dst_idx+1}"
+#     else:
+#         dst = f"Fnd-{sym.get(dst_idx, dst_idx)}"
+#     return f"{src}->{dst}({num})"
+
 def describe_move(move):
+    """Quy đổi Tuple nước đi thành chuỗi 2 ký tự (vd: '1h', '2a', 'b3')"""
     src_type, src_idx, dst_type, dst_idx, num = move
-    sym = {'hearts': 'H', 'diamonds': 'D', 'clubs': 'C', 'spades': 'S'}
-    src = f"C{src_idx+1}" if src_type == 'cascade' else f"FC{src_idx+1}"
-    if dst_type == 'cascade':
-        dst = f"C{dst_idx+1}"
-    elif dst_type == 'freecell':
-        dst = f"FC{dst_idx+1}"
-    else:
-        dst = f"Fnd-{sym.get(dst_idx, dst_idx)}"
-    return f"{src}->{dst}({num})"
+    
+    # Ký tự nguồn
+    if src_type == 'cascade': src = str(src_idx + 1)
+    else: src = chr(ord('a') + src_idx) # a, b, c, d
+    
+    # Ký tự đích
+    if dst_type == 'cascade': dst = str(dst_idx + 1)
+    elif dst_type == 'freecell': dst = chr(ord('a') + dst_idx)
+    else: dst = 'h' # foundation (Home)
+    
+    return src + dst

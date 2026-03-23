@@ -1,228 +1,169 @@
+# solvers/A_star.py
+"""
+A* solver for FreeCell.
+Uses same State/move_generator as BFS/DFS for full compatibility.
+Heuristic is admissible and consistent.
+"""
+
 import time
+import tracemalloc
 import heapq
+from core.move_generator import get_valid_moves, apply_move, auto_to_foundation
+from core.rules import Rules
 
-class AStarSolver:
-    def __init__(self, initial_state, cap=200000):
-        self.initial_state = initial_state
-        self.cap = cap
+RV = Rules.RANK_VALUES
 
-        self.suits_order = ['hearts', 'diamonds', 'clubs', 'spades']
 
-        self.rank_vals = {
-            'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
-            '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13
+def _heuristic(state):
+    """
+    Admissible & consistent heuristic.
+    
+    h(n) = cards_not_on_foundation + penalties
+    
+    Admissible: each card not on foundation needs AT LEAST 1 move.
+    Penalties only count extra moves that are definitely required:
+      - A card buried under out-of-order cards needs those cards moved first.
+    
+    Consistent: h(n) <= cost(n,n') + h(n') because:
+      - Each move costs 1
+      - Each move moves at most 1 card to foundation (reducing h by at most 1)
+      - Penalties can only decrease or stay same after a move
+    """
+    h = 0
+    
+    # Base: every card not on foundation needs at least 1 move
+    cards_on_fnd = state.foundation_count()
+    h = 52 - cards_on_fnd
+    
+    # Penalty: cards in free cells need at least 1 extra move each
+    # (they must go somewhere before they can go to foundation)
+    for c in state.free_cells:
+        if c is not None:
+            h += 1
+    
+    # Penalty: out-of-order pairs in cascades
+    # If card[i] should go to foundation BEFORE card[i+1] but is below it,
+    # card[i+1] must be moved out of the way first = at least 1 extra move
+    for cas in state.cascades:
+        for i in range(len(cas) - 1):
+            below = cas[i]
+            above = cas[i + 1]
+            # Check if they form a valid descending alternating sequence
+            if not (below.color != above.color and 
+                    RV[below.rank] == RV[above.rank] + 1):
+                # Out of order = at least 1 extra move needed
+                h += 1
+    
+    return h
+
+
+def solve_astar(initial_state, node_limit=500_000):
+    """
+    A* solver using same format as BFS/DFS.
+    Returns same result dict.
+    """
+    tracemalloc.start()
+    start_time = time.time()
+
+    root = initial_state.clone()
+    auto_to_foundation(root)
+
+    if root.is_goal():
+        elapsed = time.time() - start_time
+        _, peak = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+        return {
+            'solved': True, 'moves': [], 'expanded': 0,
+            'time': elapsed, 'memory_mb': peak / 1024 / 1024,
+            'solution_length': 0
         }
 
-    # ========================
-    # STATE → HASHABLE
-    # ========================
-    def to_hashable(self, state):
-        founds = tuple(len(state.foundations[s]) for s in self.suits_order)
+    root_key = root.get_key()
+    
+    # Priority queue: (f_score, counter, state_key)
+    counter = 0
+    open_set = []
+    heapq.heappush(open_set, (_heuristic(root), 0, counter, root_key))
+    
+    # g_score[key] = cost from start
+    g_score = {root_key: 0}
+    
+    # parent[key] = (parent_key, move)
+    parent = {root_key: None}
+    
+    # key -> state mapping
+    key_to_state = {root_key: root}
+    
+    closed = set()
+    expanded = 0
+    found_key = None
 
-        fc = tuple(
-            (c.rank, c.suit, c.color) if c else None
-            for c in state.free_cells
-        )
+    while open_set:
+        if expanded >= node_limit:
+            break
 
-        cascs = tuple(
-            tuple((c.rank, c.suit, c.color) for c in cascade)
-            for cascade in state.cascades
-        )
+        f, g, _, current_key = heapq.heappop(open_set)
+        
+        if current_key in closed:
+            continue
+        
+        closed.add(current_key)
+        
+        if current_key not in key_to_state:
+            continue
+        current_state = key_to_state.pop(current_key)
+        expanded += 1
 
-        return (founds, fc, cascs)
+        moves = get_valid_moves(current_state)
 
-    def is_won(self, h_state):
-        return sum(h_state[0]) == 52
-
-    # ========================
-    # HEURISTIC (CHUẨN A*)
-    # ========================
-    def heuristic(self, h_state):
-        founds, fc, cascs = h_state
-
-        # lower bound chuẩn
-        h = 52 - sum(founds)
-
-        # penalty nhẹ cho sai thứ tự (vẫn admissible)
-        for cascade in cascs:
-            for i in range(len(cascade) - 1):
-                below = cascade[i]
-                above = cascade[i + 1]
-
-                if not (
-                    below[2] != above[2] and
-                    self.rank_vals[below[0]] == self.rank_vals[above[0]] + 1
-                ):
-                    h += 1
-
-        return h
-
-    # ========================
-    # MOVE GENERATION
-    # ========================
-    def get_moves_and_children(self, h_state):
-        founds, fc, cascs = h_state
-        moves = []
-
-        empty_fc = sum(1 for c in fc if c is None)
-        empty_casc = sum(1 for c in cascs if not c)
-
-        def make_child(nf, nfc, nc):
-            return (tuple(nf), tuple(nfc), tuple(tuple(c) for c in nc))
-
-        # ===== FREECELL =====
-        for i, card in enumerate(fc):
-            if not card:
+        for move in moves:
+            new_state, _ = apply_move(current_state, move)
+            new_key = new_state.get_key()
+            
+            if new_key in closed:
                 continue
 
-            rank, suit, color = card
-            val = self.rank_vals[rank]
-            suit_idx = self.suits_order.index(suit)
+            new_g = g_score[current_key] + 1
 
-            # → foundation
-            if founds[suit_idx] == val - 1:
-                nf = list(founds); nf[suit_idx] += 1
-                nfc = list(fc); nfc[i] = None
-                moves.append((make_child(nf, nfc, cascs), ('freecell', i, 'foundation', suit, 1)))
-
-            # → cascade
-            for j, cascade in enumerate(cascs):
-                if not cascade:
-                    nfc = list(fc); nfc[i] = None
-                    nc = [list(c) for c in cascs]
-                    nc[j].append(card)
-                    moves.append((make_child(founds, nfc, nc), ('freecell', i, 'cascade', j, 1)))
-                else:
-                    t = cascade[-1]
-                    if color != t[2] and val == self.rank_vals[t[0]] - 1:
-                        nfc = list(fc); nfc[i] = None
-                        nc = [list(c) for c in cascs]
-                        nc[j].append(card)
-                        moves.append((make_child(founds, nfc, nc), ('freecell', i, 'cascade', j, 1)))
-
-        # ===== CASCADE =====
-        for i, cascade in enumerate(cascs):
-            if not cascade:
-                continue
-
-            b = cascade[-1]
-            val = self.rank_vals[b[0]]
-            suit_idx = self.suits_order.index(b[1])
-
-            # → foundation
-            if founds[suit_idx] == val - 1:
-                nf = list(founds); nf[suit_idx] += 1
-                nc = [list(c) for c in cascs]
-                nc[i].pop()
-                moves.append((make_child(nf, fc, nc), ('cascade', i, 'foundation', b[1], 1)))
-
-            # → freecell
-            if empty_fc > 0:
-                for f_idx in range(4):
-                    if fc[f_idx] is None:
-                        nfc = list(fc); nfc[f_idx] = b
-                        nc = [list(c) for c in cascs]
-                        nc[i].pop()
-                        moves.append((make_child(founds, nfc, nc), ('cascade', i, 'freecell', f_idx, 1)))
-                        break
-
-            # sequence detection
-            seq_len = 1
-            for k in range(len(cascade) - 2, -1, -1):
-                c1, c2 = cascade[k], cascade[k+1]
-                if c1[2] != c2[2] and self.rank_vals[c1[0]] == self.rank_vals[c2[0]] + 1:
-                    seq_len += 1
-                else:
+            if new_g < g_score.get(new_key, float('inf')):
+                g_score[new_key] = new_g
+                parent[new_key] = (current_key, move)
+                
+                if new_state.is_goal():
+                    found_key = new_key
                     break
+                
+                key_to_state[new_key] = new_state
+                f_score = new_g + _heuristic(new_state)
+                counter += 1
+                heapq.heappush(open_set, (f_score, new_g, counter, new_key))
 
-            for j, target in enumerate(cascs):
-                if i == j:
-                    continue
+        if found_key:
+            break
 
-                max_move = (empty_fc + 1) * (2 ** (empty_casc - (1 if not target else 0)))
-                max_p = min(seq_len, max_move)
+    elapsed = time.time() - start_time
+    _, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
 
-                if not target:
-                    if max_p > 0:
-                        nc = [list(c) for c in cascs]
-                        moving = nc[i][-max_p:]
-                        nc[i] = nc[i][:-max_p]
-                        nc[j].extend(moving)
-                        moves.append((make_child(founds, fc, nc), ('cascade', i, 'cascade', j, max_p)))
-                else:
-                    t = target[-1]
-                    for p in range(1, max_p + 1):
-                        m = cascade[-p]
-                        if m[2] != t[2] and self.rank_vals[m[0]] == self.rank_vals[t[0]] - 1:
-                            nc = [list(c) for c in cascs]
-                            moving = nc[i][-p:]
-                            nc[i] = nc[i][:-p]
-                            nc[j].extend(moving)
-                            moves.append((make_child(founds, fc, nc), ('cascade', i, 'cascade', j, p)))
-                            break
+    if found_key:
+        path = []
+        k = found_key
+        while parent[k] is not None:
+            pk, m = parent[k]
+            path.append(m)
+            k = pk
+        path.reverse()
+        return {
+            'solved': True,
+            'moves': path,
+            'expanded': expanded,
+            'time': elapsed,
+            'memory_mb': peak / 1024 / 1024,
+            'solution_length': len(path)
+        }
 
-        return moves
-
-    # ========================
-    # A* SOLVER
-    # ========================
-    def solve(self):
-        print("\n--- A* SOLVER START ---")
-        start_time = time.time()
-
-        start = self.to_hashable(self.initial_state)
-
-        open_set = []
-        counter = 0
-
-        heapq.heappush(open_set, (self.heuristic(start), 0, counter, start))
-
-        came_from = {}
-        g_score = {start: 0}
-        closed_set = set()
-
-        steps = 0
-
-        while open_set:
-            f, g, _, current = heapq.heappop(open_set)
-
-            if current in closed_set:
-                continue
-
-            closed_set.add(current)
-            steps += 1
-
-            if steps % 5000 == 0:
-                print(f"Checked: {steps} | Time: {time.time()-start_time:.2f}s")
-
-            if self.is_won(current):
-                print(f"WIN in {time.time()-start_time:.2f}s | {steps} states")
-
-                path = []
-                while current in came_from:
-                    current, move = came_from[current]
-                    path.append(move)
-
-                return path[::-1]
-
-            if steps >= self.cap:
-                print("CAP LIMIT HIT")
-                return []
-
-            for child, move in self.get_moves_and_children(current):
-                if child in closed_set:
-                    continue
-
-                tentative_g = g_score[current] + 1
-
-                if tentative_g < g_score.get(child, float('inf')):
-                    came_from[child] = (current, move)
-                    g_score[child] = tentative_g
-
-                    f_score = tentative_g + self.heuristic(child)
-
-                    counter += 1
-                    heapq.heappush(open_set, (f_score, tentative_g, counter, child))
-
-        print("NO SOLUTION")
-        return []
+    return {
+        'solved': False, 'moves': [], 'expanded': expanded,
+        'time': elapsed, 'memory_mb': peak / 1024 / 1024,
+        'solution_length': 0
+    }

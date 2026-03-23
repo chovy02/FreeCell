@@ -19,10 +19,6 @@ class SolverRunner:
 
         def _work():
             try:
-                import time, tracemalloc
-                tracemalloc.start()
-                t0 = time.time()
-
                 if algorithm == 'bfs':
                     from solvers.BFS import solve_bfs
                     result = solve_bfs(solve_state, node_limit=2_000_000)
@@ -33,18 +29,8 @@ class SolverRunner:
                     from solvers.UCS import solve_ucs
                     result = solve_ucs(solve_state, node_limit=2_000_000)
                 elif algorithm == 'astar':
-                    from solvers.A_star import AStarSolver
-                    solver = AStarSolver(solve_state)
-                    astar_moves = solver.solve()
-                    elapsed = time.time() - t0
-                    _, peak = tracemalloc.get_traced_memory()
-                    tracemalloc.stop()
-                    result = {
-                        'solved': len(astar_moves) > 0,
-                        'moves': astar_moves, 'expanded': 0,
-                        'time': elapsed, 'memory_mb': peak / 1024 / 1024,
-                        'solution_length': len(astar_moves)
-                    }
+                    from solvers.A_star import solve_astar
+                    result = solve_astar(solve_state, node_limit=500_000)
                 else:
                     result = {'solved': False, 'moves': [], 'expanded': 0,
                               'time': 0, 'memory_mb': 0, 'solution_length': 0}

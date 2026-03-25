@@ -35,7 +35,11 @@ class App:
 
     def _start_game(self, mode):
         state = State()
+<<<<<<< HEAD
         state.initialize_game(5152)
+=======
+        state.initialize_game(25904)
+>>>>>>> 34daf983e5cbd523eb69f81c37f5add95aa577d4
 
         if mode == "MANUAL":
             self.manual_screen = ManualScreen(self.deck, self.theme, state)

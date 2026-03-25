@@ -1,67 +1,76 @@
 # solvers/A_star.py
 """
 A* solver for FreeCell.
-Uses same State/move_generator as BFS/DFS for full compatibility.
-Heuristic is admissible and consistent.
+Uses separated cost and heuristic functions.
+Implements 'Covering Next Foundation Cards' heuristic compatible with core/state.py.
 """
 
 import time
 import tracemalloc
 import heapq
-from core.move_generator import get_valid_moves, apply_move, auto_to_foundation
+from core.move_generator import get_valid_moves, apply_move, auto_to_foundation, is_safe_auto
 from core.rules import Rules
 
 RV = Rules.RANK_VALUES
 
+def _move_cost(current_state, new_state):
+    """
+    - Cost = 0.5: Nước đi auto-safe lên Foundation (tận dụng is_safe_auto từ move_generator).
+    - Cost = 1.0: Nước đi lên Foundation nhưng không an toàn, hoặc các nước đi thông thường.
+    """
+    if new_state.foundation_count() > current_state.foundation_count():
+        # Tìm xem cọc foundation nào vừa được thêm bài
+        for suit in ['hearts', 'diamonds', 'clubs', 'spades']:
+            if len(new_state.foundations[suit]) > len(current_state.foundations[suit]):
+                # Lấy trực tiếp object Card vừa được đưa lên đích
+                card_moved = new_state.foundations[suit][-1]
+                
+                # Truyền lại vào hàm is_safe_auto để check độ an toàn
+                if is_safe_auto(current_state, card_moved):
+                    return 0.5
+                else:
+                    return 1.0
+                    
+    return 1.0
 
 def _heuristic(state):
     """
-    Admissible & consistent heuristic.
-    
-    h(n) = cards_not_on_foundation + penalties
-    
-    Admissible: each card not on foundation needs AT LEAST 1 move.
-    Penalties only count extra moves that are definitely required:
-      - A card buried under out-of-order cards needs those cards moved first.
-    
-    Consistent: h(n) <= cost(n,n') + h(n') because:
-      - Each move costs 1
-      - Each move moves at most 1 card to foundation (reducing h by at most 1)
-      - Penalties can only decrease or stay same after a move
+    Heuristic: Covering Next Foundation Cards
+    Dựa trực tiếp vào state.foundations để xác định mục tiêu cấp bách.
     """
-    h = 0
-    
-    # Base: every card not on foundation needs at least 1 move
     cards_on_fnd = state.foundation_count()
-    h = 52 - cards_on_fnd
+    base_h = 0.5 * (52 - cards_on_fnd)
     
-    # Penalty: cards in free cells need at least 1 extra move each
-    # (they must go somewhere before they can go to foundation)
-    for c in state.free_cells:
-        if c is not None:
-            h += 1
+    covering_cards = set()
     
-    # Penalty: out-of-order pairs in cascades
-    # If card[i] should go to foundation BEFORE card[i+1] but is below it,
-    # card[i+1] must be moved out of the way first = at least 1 extra move
-    for cas in state.cascades:
-        for i in range(len(cas) - 1):
-            below = cas[i]
-            above = cas[i + 1]
-            # Check if they form a valid descending alternating sequence
-            if not (below.color != above.color and 
-                    RV[below.rank] == RV[above.rank] + 1):
-                # Out of order = at least 1 extra move needed
-                h += 1
-    
-    return h
+    # Duyệt qua 4 chất dựa theo định nghĩa trong State
+    for suit in ['hearts', 'diamonds', 'clubs', 'spades']:
+        # Chiều dài mảng foundation + 1 chính là Rank Value của lá bài tiếp theo cần tìm
+        # Ví dụ: list rỗng (len=0) -> cần Át (RV=1)
+        next_needed_val = len(state.foundations[suit]) + 1
+        
+        if next_needed_val > 13:
+            continue # Chất này đã hoàn thành xong
+            
+        # Truy tìm vị trí của lá bài mục tiêu này trong các cột Cascades
+        found = False
+        for cas in state.cascades:
+            for pos, card in enumerate(cas):
+                if card.suit == suit and RV[card.rank] == next_needed_val:
+                    # Đã tìm thấy! Thêm TẤT CẢ các lá bài nằm đè lên nó vào danh sách phạt
+                    for i in range(pos + 1, len(cas)):
+                        covering_cards.add(cas[i])
+                    found = True
+                    break # Dừng tìm kiếm trong cột này
+            if found:
+                break # Dừng tìm kiếm trong các cột khác (vì mỗi lá bài là duy nhất)
 
+    # Mỗi lá bài ngáng đường bắt buộc phải tốn 1 nước đi (cost = 1.0) để dọn dẹp
+    penalty_h = 1.0 * len(covering_cards)
+    
+    return base_h + penalty_h
 
 def solve_astar(initial_state, node_limit=500_000):
-    """
-    A* solver using same format as BFS/DFS.
-    Returns same result dict.
-    """
     tracemalloc.start()
     start_time = time.time()
 
@@ -80,18 +89,12 @@ def solve_astar(initial_state, node_limit=500_000):
 
     root_key = root.get_key()
     
-    # Priority queue: (f_score, counter, state_key)
     counter = 0
     open_set = []
-    heapq.heappush(open_set, (_heuristic(root), 0, counter, root_key))
+    heapq.heappush(open_set, (_heuristic(root), 0.0, counter, root_key))
     
-    # g_score[key] = cost from start
-    g_score = {root_key: 0}
-    
-    # parent[key] = (parent_key, move)
+    g_score = {root_key: 0.0}
     parent = {root_key: None}
-    
-    # key -> state mapping
     key_to_state = {root_key: root}
     
     closed = set()
@@ -123,7 +126,8 @@ def solve_astar(initial_state, node_limit=500_000):
             if new_key in closed:
                 continue
 
-            new_g = g_score[current_key] + 1
+            cost = _move_cost(current_state, new_state)
+            new_g = g_score[current_key] + cost
 
             if new_g < g_score.get(new_key, float('inf')):
                 g_score[new_key] = new_g
@@ -134,7 +138,8 @@ def solve_astar(initial_state, node_limit=500_000):
                     break
                 
                 key_to_state[new_key] = new_state
-                f_score = new_g + _heuristic(new_state)
+                f_score = new_g +  _heuristic(new_state)
+                
                 counter += 1
                 heapq.heappush(open_set, (f_score, new_g, counter, new_key))
 

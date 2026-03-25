@@ -2,7 +2,27 @@
 import time
 import tracemalloc
 import heapq
-from core.move_generator import get_valid_moves, apply_move, auto_to_foundation
+from core.move_generator import get_valid_moves, apply_move, auto_to_foundation, is_safe_auto
+
+def _move_cost(current_state, new_state):
+    """
+    - Cost = 0.1: Nước đi auto-safe lên Foundation.
+    - Cost = 1.0: Nước đi lên Foundation nhưng không an toàn, hoặc các nước đi thông thường.
+    """
+    if new_state.foundation_count() > current_state.foundation_count():
+        # Tìm xem cọc foundation nào vừa được thêm bài
+        for suit in ['hearts', 'diamonds', 'clubs', 'spades']:
+            if len(new_state.foundations[suit]) > len(current_state.foundations[suit]):
+                card_moved = new_state.foundations[suit][-1]
+                
+                # Truyền lại vào hàm is_safe_auto để check độ an toàn
+                if is_safe_auto(current_state, card_moved):
+                    return 0.1
+                else:
+                    return 1.0
+                    
+    return 1.0
+
 
 def solve_ucs(initial_state, node_limit=2_000_000):
     tracemalloc.start()
@@ -25,9 +45,10 @@ def solve_ucs(initial_state, node_limit=2_000_000):
     
     pq = []
     counter = 0
-    heapq.heappush(pq, (0, counter, root_key))
+    heapq.heappush(pq, (0.0, counter, root_key)) # Khởi tạo cost dạng float (0.0)
     
-    parent = {root_key: (None, None, 0)}
+    # parent lưu: (parent_key, move_from_parent, cost_to_reach_this_node)
+    parent = {root_key: (None, None, 0.0)}
     key_to_state = {root_key: root}
     
     explored = set()
@@ -63,10 +84,12 @@ def solve_ucs(initial_state, node_limit=2_000_000):
             new_state, _ = apply_move(current_state, move)
             new_key = new_state.get_key()
             
-            # Chi phí di chuyển trong Freecell luôn là 1
-            new_cost = current_cost + 1
+            # Tính toán Cost động thay vì fix cứng là 1
+            cost = _move_cost(current_state, new_state)
+            new_cost = current_cost + cost
 
             if new_key not in explored:
+                # Cập nhật nếu tìm thấy đường đi rẻ hơn đến node này
                 if new_key not in parent or new_cost < parent[new_key][2]:
                     parent[new_key] = (current_key, move, new_cost)
                     key_to_state[new_key] = new_state

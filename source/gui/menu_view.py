@@ -1,4 +1,5 @@
 # gui/menu_view.py
+import os
 import pygame
 
 
@@ -8,6 +9,21 @@ class MenuView:
         self.font_title = pygame.font.SysFont('Arial', 64, bold=True)
         self.font_sub = pygame.font.SysFont('Arial', 22)
         self.font_btn = pygame.font.SysFont('Arial', 30)
+
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        self.assets_folder = os.path.join(self.current_dir, "..", "assets", "backgrounds")
+        
+        TARGET_LOGO_WIDTH = 450
+        try:
+            self.logo_raw = pygame.image.load(os.path.join(self.assets_folder, "logo.png")).convert_alpha()
+            w, h = self.logo_raw.get_size()
+            aspect_ratio = w / h
+            target_h = int(TARGET_LOGO_WIDTH / aspect_ratio)
+            self.logo_img = pygame.transform.smoothscale(self.logo_raw, (TARGET_LOGO_WIDTH, target_h))
+            self.logo_raw = None
+        except FileNotFoundError:
+            print("Không tìm thấy logo.png! Sẽ dùng text dự phòng.")
+            self.logo_img = None
 
         self.rect_manual = None
         self.rect_ai = None
@@ -42,11 +58,14 @@ class MenuView:
     def draw(self, screen):
         self.theme.draw_background(screen)
 
-        title = self.font_title.render("FreeCell Solitaire", True, (255, 255, 255))
-        screen.blit(title, title.get_rect(center=(self.width // 2, 190)))
-
-        sub = self.font_sub.render("Choose a mode to start", True, (200, 200, 200))
-        screen.blit(sub, sub.get_rect(center=(self.width // 2, 260)))
+        if self.logo_img:
+            # Canh giữa logo, tọa độ Y = 190 (giống title cũ)
+            logo_rect = self.logo_img.get_rect(center=(self.width // 2, 190))
+            screen.blit(self.logo_img, logo_rect)
+        else:
+            # Dự phòng nếu lỗi load ảnh
+            title = self.font_title.render("FreeCell Solitaire", True, (255, 255, 255))
+            screen.blit(title, title.get_rect(center=(self.width // 2, 190)))
 
         self._draw_btn(screen, self.rect_manual, "Manual Play", (40, 120, 255))
         self._draw_btn(screen, self.rect_ai, "AI Auto Solve", (180, 90, 40))

@@ -1,5 +1,6 @@
 # gui/ai_screen.py
 import pygame
+import os
 from .board_view import BoardView
 from .solver_runner import SolverRunner
 from .solution_player import SolutionPlayer
@@ -27,6 +28,38 @@ class AIScreen:
 
         self.btn_rects = {}
         self.playback_rects = {} # Quản lý riêng 5 nút Playback
+
+        # --- LOAD ASSETS/BUTTONS ---
+        self.btn_imgs = {}
+        self._load_button_images()
+
+    def _load_button_images(self):
+        # Lấy đường dẫn gốc của project
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(current_dir)
+        btn_dir = os.path.join(project_root, 'assets', 'buttons')
+
+        # Kích thước icon (to hơn, 60x60)
+        btn_size = (60, 60)
+        
+        # Mapping tên nút với file ảnh tương ứng
+        files = {
+            'start': 'fast_rewind.png',
+            'back': 'step_backward.png',
+            'play': 'continue.png',
+            'pause': 'pause.png',
+            'next': 'step_forward.png',
+            'end': 'fast_forward.png'
+        }
+
+        for key, filename in files.items():
+            path = os.path.join(btn_dir, filename)
+            try:
+                img = pygame.image.load(path).convert_alpha()
+                self.btn_imgs[key] = pygame.transform.smoothscale(img, btn_size)
+            except Exception as e:
+                print(f"Lỗi khi load ảnh {filename}: {e}")
+                self.btn_imgs[key] = None
 
     def _reset(self):
         self.state = self.initial_state.clone()
@@ -179,57 +212,67 @@ class AIScreen:
             screen.blit(txt, (px + 6, py + 4 + i * 17))
 
     def _draw_playback_controls(self, screen, width, height):
-        btn_y = height - 55
-        btn_h, btn_w, gap = 45, 60, 15
-        play_label = "||" if self.player.target_step > self.player.current_step else "►"
+        btn_w, btn_h = 60, 60 # Kích thước các icon lớn hơn
+        gap = 5 # Khoảng cách giữa các nút
+        
+        # Tính toán kích thước tổng của cụm nút (3 hàng, 2 cột)
+        cluster_w = btn_w * 2 + gap
+        cluster_h = btn_h * 3 + gap * 2
+        
+        # Lệch phải nhiều hơn
+        right_margin = 10
+        x_left = width - right_margin - cluster_w
+        x_right = x_left + btn_w + gap
+        x_center = x_left + (cluster_w - btn_w) // 2
+        
+        # Tọa độ Y cho 3 hàng từ trên xuống dưới (canh giữa trục dọc)
+        y_top = (height - cluster_h) // 2
+        y_mid = y_top + btn_h + gap
+        y_bot = y_mid + btn_h + gap
+        
+        # Quyết định xem nên hiện icon Pause hay Play
+        is_playing = self.player.target_step > self.player.current_step
+        play_icon = self.btn_imgs.get('pause') if is_playing else self.btn_imgs.get('play')
+        
+        # Bố cục tam giác (play trung tâm trên, 2 step giữa, 2 fast dưới)
         buttons = [
-            ('|<', 'start'), ('<', 'back'), 
-            (play_label, 'play'), 
-            ('>', 'next'), ('>|', 'end')
+            (play_icon, 'play', x_center, y_top),
+            (self.btn_imgs.get('back'), 'back', x_left, y_mid),
+            (self.btn_imgs.get('next'), 'next', x_right, y_mid),
+            (self.btn_imgs.get('start'), 'start', x_left, y_bot),
+            (self.btn_imgs.get('end'), 'end', x_right, y_bot)
         ]
         
-        total = len(buttons) * btn_w + (len(buttons) - 1) * gap
-        sx = (width - total) // 2
         mouse = pygame.mouse.get_pos()
 
-        for idx, (label, key) in enumerate(buttons):
-            x = sx + idx * (btn_w + gap)
-            rect = pygame.Rect(x, btn_y, btn_w, btn_h)
+        for img, key, x, y in buttons:
+            if not img:
+                continue # Bỏ qua nếu ảnh chưa tải được
+
+            rect = pygame.Rect(x, y, btn_w, btn_h)
             self.playback_rects[key] = rect
             
             is_hover = rect.collidepoint(mouse)
-            base_color = (46, 204, 113) if key == 'play' else (52, 152, 219)
             
-            # Hover lún xuống tương tự các nút trên
+            # Hover lún xuống (dịch xuống 2 pixel)
+            y_offset = 2 if is_hover else 0
+            
+            # Hiệu ứng hover mờ mờ đằng sau icon
             if is_hover:
-                draw_color = tuple(min(255, c + 40) for c in base_color)
-                y_offset = 2
-            else:
-                draw_color = base_color
-                y_offset = 0
-            # Bóng đổ
+                hover_surf = pygame.Surface((btn_w + 4, btn_h + 4), pygame.SRCALPHA)
+                pygame.draw.circle(hover_surf, (255, 255, 255, 40), (btn_w//2 + 2, btn_h//2 + 2), btn_w//2)
+                screen.blit(hover_surf, (x - 2, y + y_offset - 2))
 
-            # Nút chính và viền
-            main_rect = pygame.Rect(x, btn_y + y_offset, btn_w, btn_h)
-            pygame.draw.rect(screen, draw_color, main_rect, border_radius=6)
-            #pygame.draw.rect(screen, (255, 255, 255), main_rect, width=2, border_radius=20)
-
-            # Text 
-            txt = self.font_ctrl.render(label, True, (255, 255, 255))
-            
-            text_x = x + (btn_w - txt.get_width()) // 2
-            text_y = btn_y + y_offset + (btn_h - txt.get_height()) // 2 - 2
-            
-            screen.blit(txt, (text_x, text_y))
+            # Vẽ icon tại tọa độ đã định
+            screen.blit(img, (x, y + y_offset))
 
     def _draw_move_board(self, screen, width, height):
-        # Thiết kế dạng Sliding Window: Chỉ hiện 1 dòng hiển thị khoảng 9 bước gần nhất
         if not self.player.move_strings: return
 
         visible_moves = 9 # Số lượng bước hiển thị
         cell_w, cell_h = 45, 25
         start_x = (width - visible_moves * cell_w) // 2
-        start_y = height - 95 # Nằm ngay trên cụm nút Playback
+        start_y = height - 35 # Hạ thấp xuống gần dưới đáy
         
         current_idx = self.player.get_current_move_index()
         total_moves = len(self.player.move_strings)
@@ -243,7 +286,7 @@ class AIScreen:
         # Nền mờ cho bảng
         bg_rect = pygame.Rect(start_x - 10, start_y - 5, visible_moves * cell_w + 20, cell_h + 10)
         surf = pygame.Surface((bg_rect.width, bg_rect.height), pygame.SRCALPHA)
-        surf.fill((10, 10, 20, 180))
+        surf.fill((10, 10, 20, 60)) # Trong suốt hơn (alpha = 60)
         screen.blit(surf, bg_rect.topleft)
 
         for i in range(start_idx, end_idx):
@@ -263,7 +306,6 @@ class AIScreen:
             # Viền báo hiệu bước hiện tại
             if i == current_idx:
                 pygame.draw.rect(screen, (80, 200, 80), (x, y, cell_w, cell_h), 2, border_radius=4)
-
 
     def _draw_overlay(self, screen, width, height, text, color):
         txt = self.font_big.render(text, True, color)

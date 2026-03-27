@@ -15,37 +15,36 @@ class App:
         self.screen = pygame.display.set_mode((1280, 720), pygame.RESIZABLE | pygame.WINDOWMAXIMIZED)
         pygame.display.set_caption("FreeCell")
 
-        self.width = self.screen.get_width()
+        self.width  = self.screen.get_width()
         self.height = self.screen.get_height()
-        self.clock = pygame.time.Clock()
+        self.clock  = pygame.time.Clock()
         self.running = True
 
-        # Shared resources
         self.theme = ThemeManager()
         self.theme.load_background("background.png", self.width, self.height)
 
-        loader = CardLoader()
+        loader   = CardLoader()
         self.deck = loader.load_cards()
 
-        # Screens
         self.current_screen = "MENU"
-        self.menu = MenuView(self.theme, self.width, self.height)
-        self.manual_screen = None
-        self.ai_screen = None
+        self.menu           = MenuView(self.theme, self.width, self.height)
+        self.manual_screen  = None
+        self.ai_screen      = None
 
     def _start_game(self, mode):
         state = State()
         state.initialize_game(25904)
+        w, h = self.width, self.height
 
         if mode == "MANUAL":
-            self.manual_screen = ManualScreen(self.deck, self.theme, state)
+            self.manual_screen = ManualScreen(self.deck, self.theme, state, w, h)
             self.current_screen = "MANUAL"
         elif mode == "AI":
-            self.ai_screen = AIScreen(self.deck, self.theme, state)
+            self.ai_screen = AIScreen(self.deck, self.theme, state, w, h)
             self.current_screen = "AI"
 
     def _handle_resize(self, w, h):
-        self.width = w
+        self.width  = w
         self.height = h
         self.theme.resize_background(w, h)
         self.menu.update_layout(w, h)
@@ -60,10 +59,11 @@ class App:
                 if event.type == pygame.VIDEORESIZE:
                     self._handle_resize(event.w, event.h)
 
-                # Route events to current screen
                 if self.current_screen == "MENU":
                     result = self.menu.handle_event(event)
-                    if result:
+                    if result == "QUIT":
+                        self.running = False
+                    elif result:
                         self._start_game(result)
 
                 elif self.current_screen == "MANUAL":
@@ -76,11 +76,9 @@ class App:
                     if result == "MENU":
                         self.current_screen = "MENU"
 
-            # Update
             if self.current_screen == "AI" and self.ai_screen:
                 self.ai_screen.update()
 
-            # Draw
             if self.current_screen == "MENU":
                 self.menu.draw(self.screen)
             elif self.current_screen == "MANUAL":

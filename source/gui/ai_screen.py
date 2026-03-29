@@ -255,7 +255,7 @@ class AIScreen:
         # ── panel sizing ──
         pw = 192
         row_h = 18
-        rows = 7 if not self.player.playing else 8
+        rows = 5
         ph   = 32 + rows * row_h + 8      # title bar 32px + rows + padding
         px   = width - pw - 16
         py   = height - ph - 16
@@ -284,9 +284,6 @@ class AIScreen:
         # Divider
         pygame.draw.line(screen, C_PANEL_BORDER, (px + 6, ry), (px + pw - 6, ry))
         ry += 5
-
-        if self.player.playing:
-            stat_row("Step", f"{pl_step} / {pl_total}", C_TEXT_BLUE)
 
     # ─── PLAYBACK CONTROLS (icon buttons, right side) ──────────────────
 

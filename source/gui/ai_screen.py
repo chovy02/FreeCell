@@ -358,11 +358,11 @@ class AIScreen:
         if end_idx - start_idx < VISIBLE:
             start_idx = max(0, end_idx - VISIBLE)
 
-        # Backing strip
+        # Backing strip — transparent
         strip_h = chip_h + 14
         strip   = pygame.Surface((total_w + 24, strip_h), pygame.SRCALPHA)
-        pygame.draw.rect(strip, (8, 12, 22, 165), strip.get_rect(), border_radius=10)
-        pygame.draw.rect(strip, (*C_PANEL_BORDER, 120), strip.get_rect(),
+        pygame.draw.rect(strip, (8, 12, 22, 70), strip.get_rect(), border_radius=10)
+        pygame.draw.rect(strip, (*C_PANEL_BORDER, 40), strip.get_rect(),
                          width=1, border_radius=10)
         screen.blit(strip, (sx - 12, sy - 7))
 
@@ -378,29 +378,34 @@ class AIScreen:
                 chip_color = (35, 130, 75)
                 border_c   = C_TEXT_GREEN
                 text_c     = (200, 255, 215)
+                chip_alpha = 200
             elif is_done:
                 chip_color = (30, 40, 58)
                 border_c   = C_PANEL_BORDER
                 text_c     = (180, 185, 195)
+                chip_alpha = 120
             else:
                 chip_color = (18, 24, 36)
                 border_c   = (35, 45, 62)
                 text_c     = (90, 100, 115)
+                chip_alpha = 100
 
             chip_rect = pygame.Rect(cx, sy, chip_w, chip_h)
 
-            # Chip fill
+            # Chip fill — transparent
             chip_surf = pygame.Surface((chip_w, chip_h), pygame.SRCALPHA)
-            pygame.draw.rect(chip_surf, (*chip_color, 230), chip_surf.get_rect(), border_radius=6)
+            pygame.draw.rect(chip_surf, (*chip_color, chip_alpha), chip_surf.get_rect(), border_radius=6)
             screen.blit(chip_surf, chip_rect.topleft)
 
             # Chip border
-            pygame.draw.rect(screen, border_c, chip_rect, width=1, border_radius=6)
+            border_surf = pygame.Surface((chip_w, chip_h), pygame.SRCALPHA)
+            pygame.draw.rect(border_surf, (*border_c, chip_alpha), border_surf.get_rect(), width=1, border_radius=6)
+            screen.blit(border_surf, chip_rect.topleft)
 
             # Glow for current chip
             if is_current:
                 glow = pygame.Surface((chip_w + 4, chip_h + 4), pygame.SRCALPHA)
-                pygame.draw.rect(glow, (*C_TEXT_GREEN, 55),
+                pygame.draw.rect(glow, (*C_TEXT_GREEN, 40),
                                  glow.get_rect(), width=2, border_radius=8)
                 screen.blit(glow, (cx - 2, sy - 2))
 

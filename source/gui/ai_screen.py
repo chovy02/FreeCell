@@ -155,8 +155,7 @@ class AIScreen:
         if not self._deal_inited:
             self.board_view.draw_board(screen, width, height, self.state)
             self._deal_inited = True
-            self._deal_anim = DealingAnimator(
-                self.deck, self.state, self.board_view, width, height)
+            self._deal_anim = DealingAnimator(self.deck, self.state, self.board_view, width, height)
             self.theme.draw_background(screen)
 
         # ── Choose which state to render ──

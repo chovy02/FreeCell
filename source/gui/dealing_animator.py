@@ -1,4 +1,6 @@
 # gui/dealing_animator.py
+
+import os
 """
 DealingAnimator — deals cards from an empty board one by one.
 
@@ -35,13 +37,14 @@ def _make_back(w, h):
 
 
 class _FlyingCard:
-    __slots__ = ('face', 'back', 'start', 'end', 'delay',
+    back_img = None
+
+    __slots__ = ('face', 'start', 'end', 'delay',
                  'progress', 'speed', 'launched', 'finished', '_flip_done',
                  '_col', '_row', '_card')
 
-    def __init__(self, face_img, back_img, start, end, delay):
+    def __init__(self, face_img, start, end, delay):
         self.face      = face_img
-        self.back      = back_img
         self.start     = start
         self.end       = end
         self.delay     = delay
@@ -50,6 +53,18 @@ class _FlyingCard:
         self.launched  = False
         self.finished  = False
         self._flip_done= False   # face revealed after halfway
+
+        if _FlyingCard.back_img is None:
+            try:
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                assets_folders = os.path.join(current_dir, "..", "assets", "cards")
+                _FlyingCard.back_img = pygame.image.load(os.path.join(assets_folders, "card_back.png")).convert_alpha()
+            except FileNotFoundError:
+                print("Lỗi: Không tìm thấy ảnh mặt úp, dùng hình chữ nhật dự phòng.")
+                fallback = pygame.Surface((80, 115))
+                fallback.fill((40, 80, 200))
+                pygame.draw.rect(fallback, (255, 255, 255), fallback.get_rect(), 3, border_radius=5)
+                _FlyingCard.back_img = fallback
 
     def update(self):
         if self.finished:
@@ -84,7 +99,7 @@ class _FlyingCard:
         scale_y  = 0.70 + 0.30 * eased              # grows as it lands
         use_face = (p >= 0.5)
 
-        img = self.face if use_face else self.back
+        img = self.face if use_face else _FlyingCard.back_img
         w   = max(4, int(img.get_width()  * scale_x))
         h   = max(4, int(img.get_height() * scale_y))
         scaled = pygame.transform.smoothscale(img, (w, h))
@@ -144,7 +159,6 @@ class DealingAnimator:
         src_x = self.screen_w // 2 - cw // 2
         src_y = start_y - 80
 
-        self._back = _make_back(cw, ch)
 
         self.cards = []
         delay_acc  = 0
@@ -158,7 +172,7 @@ class DealingAnimator:
                     continue
                 end_x = col_x
                 end_y = start_y + row_j * vs
-                fc = _FlyingCard(face, self._back,
+                fc = _FlyingCard(face,
                                  (src_x, src_y), (end_x, end_y),
                                  delay_acc)
                 # Store which column / row so we can land it
@@ -170,6 +184,12 @@ class DealingAnimator:
 
         if not self.cards:
             self.done = True
+
+        if _FlyingCard.back_img is not None:
+            self._back = pygame.transform.smoothscale(_FlyingCard.back_img, (cw, ch))
+
+        else:
+            self._back = _make_back(cw, ch)
 
     # ── PUBLIC API ─────────────────────────────────────────────────────
 
@@ -221,9 +241,8 @@ class DealingAnimator:
                 screen.blit(sh, (sx + 3, sy + 5))
 
                 # Stack layers (max 4)
-                for off in range(min(4, count), 0, -1):
-                    if self._back:
-                        screen.blit(self._back, (sx - off, sy - off))
+                if self._back:
+                    screen.blit(self._back, (sx, sy))
 
         # Flying cards
         for c in in_flight:

@@ -153,16 +153,6 @@ class MenuView:
             t  = fb.render("FREECELL", True, C_TEXT_GOLD)
             screen.blit(t, t.get_rect(center=(cx, logo_cy)))
 
-<<<<<<< HEAD
-        # ── Top gold ornament strip ───────────────────────────────────
-        self._draw_ornament(screen, cx, py + 14, panel_w - 60)
-
-        # ── Divider below logo ────────────────────────────────────────
-        div_y = py + 210
-        self._draw_divider(screen, cx, div_y, arm=170)
-
-=======
->>>>>>> f9f7407ee14d93a29cb4c71c4a2de9d8afbe3c2b
         # ── Buttons ──────────────────────────────────────────────────
         mouse = pygame.mouse.get_pos()
         draw_button(screen, self.rect_manual, "Manual Play",   BTN_MANUAL, self.font_btn, mouse)

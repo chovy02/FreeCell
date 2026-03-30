@@ -241,7 +241,7 @@ class AIScreen:
         sol_len = info.get('solution_length', 0)
 
         algo_col    = ALGO_COLORS.get(algo, C_TEXT_GOLD)
-        status_text = status or ("SOLVED" if solved else "NOT FOUND")
+        status_text = status or ("SOLVED" if solved else "NO SOLUTION")
         status_col  = C_TEXT_GREEN if solved else C_TEXT_RED
         if status:
             status_col = C_TEXT_GOLD

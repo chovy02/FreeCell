@@ -164,13 +164,16 @@ class ManualScreen:
 
         # ── First frame: init board_view layout, then create deal animator ──
         if not self._deal_inited:
-            # Draw once with real state to populate hitboxes, then hide it
             self.board_view.draw_board(screen, width, height, self.state)
             self._deal_inited = True
             self._deal_anim = DealingAnimator(
                 self.deck, self.state, self.board_view, width, height)
-            # Re-draw background to wipe that first frame
             self.theme.draw_background(screen)
+
+        # ── AI Helper active → let it take over the entire screen ──
+        if self.ai_helper.active:
+            self.ai_helper.draw(screen, width, height)
+            return
 
         # ── Choose which state to render ──
         if self._deal_anim and not self._deal_anim.done:
@@ -198,8 +201,6 @@ class ManualScreen:
 
         if self.won:
             draw_win_overlay(screen, width, height, "YOU WIN!", self.font_big)
-            
-        self.ai_helper.draw(screen, width, height)
 
     def _draw_buttons(self, screen, width, height):
         btn_h  = 40

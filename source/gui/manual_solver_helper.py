@@ -6,7 +6,7 @@ from .solution_player import SolutionPlayer
 from .ui_theme import (
     C_PANEL_BORDER, C_TEXT_PRIMARY, C_TEXT_DIM, C_TEXT_GOLD, C_TEXT_GREEN,
     C_TEXT_RED, C_TEXT_BLUE, C_TEXT_ORANGE, C_TEXT_PURPLE,
-    draw_panel, draw_solving_overlay
+    draw_panel, draw_solving_overlay, draw_win_overlay
 )
 
 ALGO_COLORS = {
@@ -75,7 +75,7 @@ class ManualSolverHelper:
                         elif key == 'next': self.player.step_forward()
                         elif key == 'end':  self.player.fast_forward_end()
                         return True
-                return True 
+                return True  # Block all clicks when helper is active
 
         if not self.active and event.type == pygame.KEYDOWN:
             k = event.key
@@ -112,39 +112,44 @@ class ManualSolverHelper:
         if self.solver.solving:
             self.solver_info = self.solver.get_status()
 
-    def draw(self, screen, width, height):
-        if not self.active: return
-        
-        self.update()
-        
-        # SỬA Ở ĐÂY: Cache lại dim_surf để không tạo mới liên tục mỗi frame
-        if not hasattr(self, '_dim_surf') or self._dim_surf.get_size() != (width, height):
-            self._dim_surf = pygame.Surface((width, height), pygame.SRCALPHA)
-            self._dim_surf.fill((0, 0, 0, 150))
-            
-        screen.blit(self._dim_surf, (0, 0))
+    # ─── DRAW — takes over entire screen like AI screen ────────────────
 
-        # 2. Vẽ bài đang chạy bằng SolutionPlayer (nếu đã giải xong)
+    def draw(self, screen, width, height):
+        if not self.active:
+            return
+
+        self.update()
+
+        # 1. Vẽ lại toàn bộ màn hình (background + board) — không dùng dim overlay
+        self.ms.theme.draw_background(screen)
+        self.ms.board_view.draw_board(screen, width, height, self.ms.state)
+
+        # 2. Vẽ animation thẻ bài đang bay (từ SolutionPlayer)
         if self.solver_info and self.solver_info.get('solved'):
             self.player.draw(screen, self.ms.deck, self.ms.board_view)
 
-        # 3. Vẽ Info Panel: Hiển thị ngay lập tức để người dùng biết đang giải
+        # 3. Info Panel — luôn hiển thị khi có solver_info
         self._draw_info_panel(screen, width, height)
 
-        # 4. Vẽ overlay chữ "Solving..." to ở giữa màn hình
+        # 4. Overlay trạng thái
         if self.solver.solving:
             draw_solving_overlay(screen, width, height, "Solving…", self.font_big)
         else:
-            # 5. Thanh Playback và Move Board
             if self.solver_info and self.solver_info.get('solved'):
+                # Playback controls + Move board
                 self._draw_playback_controls(screen, width, height)
                 self._draw_move_board(screen, width, height)
-                
-            # Gợi ý cách thoát
-            hint = self.font_stat.render("Press ESC to exit AI Helper & continue playing", True, C_TEXT_DIM)
-            screen.blit(hint, (width // 2 - hint.get_width() // 2, height - 120))
 
-    # ─── UI COMPONENTS ────────────────────────────────────────────────
+                # Win overlay khi đã giải xong và không còn đang play
+                if self.ms.state.is_goal() and not self.player.playing:
+                    draw_win_overlay(screen, width, height, "SOLVED!", self.font_big)
+
+        # 5. Gợi ý thoát — đặt ở vị trí không bị đè
+        hint = self.font_stat.render(
+            "Press ESC to exit AI Helper & continue playing", True, C_TEXT_DIM)
+        screen.blit(hint, hint.get_rect(center=(width // 2, height - 65)))
+
+    # ─── INFO PANEL (bottom-right) ────────────────────────────────────
 
     def _draw_info_panel(self, screen, width, height):
         info = self.solver_info
@@ -159,7 +164,7 @@ class ManualSolverHelper:
         sol_len = info.get('solution_length', 0)
 
         algo_col    = ALGO_COLORS.get(algo, C_TEXT_GOLD)
-        status_text = status or ("SOLVED" if solved else "NOT FOUND")
+        status_text = status or ("SOLVED" if solved else "NO SOLUTION")
         status_col  = C_TEXT_GREEN if solved else C_TEXT_RED
         if status: 
             status_col = C_TEXT_GOLD
@@ -189,7 +194,8 @@ class ManualSolverHelper:
         stat_row("Moves",    str(sol_len),           C_TEXT_GOLD)
 
         pygame.draw.line(screen, C_PANEL_BORDER, (px + 6, ry), (px + pw - 6, ry))
-        ry += 5
+
+    # ─── PLAYBACK CONTROLS (icon buttons, right side) ──────────────────
 
     def _draw_playback_controls(self, screen, width, height):
         btn_w, btn_h, gap = 56, 56, 6
@@ -215,7 +221,8 @@ class ManualSolverHelper:
         ]
 
         pad = 10
-        draw_panel(screen, x_left - pad, y_top - pad, cluster_w + pad * 2, cluster_h + pad * 2, alpha=140)
+        draw_panel(screen, x_left - pad, y_top - pad,
+                   cluster_w + pad * 2, cluster_h + pad * 2, alpha=140)
 
         mouse = pygame.mouse.get_pos()
         for img, key, x, y in btns:
@@ -227,9 +234,12 @@ class ManualSolverHelper:
 
             if is_hov:
                 glow = pygame.Surface((btn_w + 8, btn_h + 8), pygame.SRCALPHA)
-                pygame.draw.circle(glow, (255, 255, 255, 35), (btn_w // 2 + 4, btn_h // 2 + 4), btn_w // 2 + 2)
+                pygame.draw.circle(glow, (255, 255, 255, 35),
+                                   (btn_w // 2 + 4, btn_h // 2 + 4), btn_w // 2 + 2)
                 screen.blit(glow, (x - 4, y + y_off - 4))
             screen.blit(img, (x, y + y_off))
+
+    # ─── MOVE BOARD (pill chips along bottom center) ────────────────────
 
     def _draw_move_board(self, screen, width, height):
         if not self.player.move_strings: return
@@ -250,7 +260,8 @@ class ManualSolverHelper:
         strip_h = chip_h + 14
         strip = pygame.Surface((total_w + 24, strip_h), pygame.SRCALPHA)
         pygame.draw.rect(strip, (8, 12, 22, 165), strip.get_rect(), border_radius=10)
-        pygame.draw.rect(strip, (*C_PANEL_BORDER, 120), strip.get_rect(), width=1, border_radius=10)
+        pygame.draw.rect(strip, (*C_PANEL_BORDER, 120), strip.get_rect(),
+                         width=1, border_radius=10)
         screen.blit(strip, (sx - 12, sy - 7))
 
         for i in range(start_idx, end_idx):
@@ -270,14 +281,16 @@ class ManualSolverHelper:
             chip_rect = pygame.Rect(cx, sy, chip_w, chip_h)
 
             chip_surf = pygame.Surface((chip_w, chip_h), pygame.SRCALPHA)
-            pygame.draw.rect(chip_surf, (*chip_color, 230), chip_surf.get_rect(), border_radius=6)
+            pygame.draw.rect(chip_surf, (*chip_color, 230), chip_surf.get_rect(),
+                             border_radius=6)
             screen.blit(chip_surf, chip_rect.topleft)
 
             pygame.draw.rect(screen, border_c, chip_rect, width=1, border_radius=6)
 
             if is_current:
                 glow = pygame.Surface((chip_w + 4, chip_h + 4), pygame.SRCALPHA)
-                pygame.draw.rect(glow, (*C_TEXT_GREEN, 55), glow.get_rect(), width=2, border_radius=8)
+                pygame.draw.rect(glow, (*C_TEXT_GREEN, 55), glow.get_rect(),
+                                 width=2, border_radius=8)
                 screen.blit(glow, (cx - 2, sy - 2))
 
             txt = self.font_move.render(mv_str, True, text_c)
@@ -286,4 +299,5 @@ class ManualSolverHelper:
         if total_mv > 0:
             prog = f"{min(cur_idx, total_mv)}/{total_mv}"
             prog_s = self.font_stat.render(prog, True, C_TEXT_DIM)
-            screen.blit(prog_s, (sx + total_w + 18, sy + chip_h // 2 - prog_s.get_height() // 2))
+            screen.blit(prog_s, (sx + total_w + 18,
+                                 sy + chip_h // 2 - prog_s.get_height() // 2))

@@ -11,6 +11,8 @@ import heapq
 from core.move_generator import get_valid_moves, apply_move, auto_to_foundation, is_safe_auto
 from core.rules import Rules
 
+from utils.results import SolverResult
+
 RV = Rules.RANK_VALUES
 
 def _move_cost(current_state, new_state):
@@ -81,11 +83,10 @@ def solve_astar(initial_state, node_limit=500_000):
         elapsed = time.time() - start_time
         _, peak = tracemalloc.get_traced_memory()
         tracemalloc.stop()
-        return {
-            'solved': True, 'moves': [], 'expanded': 0,
-            'time': elapsed, 'memory_mb': peak / 1024 / 1024,
-            'solution_length': 0
-        }
+        return SolverResult(
+            solved = True, moves = [], expanded = 0,
+            time = elapsed, memory_mb = peak / 1024 / 1024
+        )
 
     root_key = root.get_key()
     
@@ -158,17 +159,15 @@ def solve_astar(initial_state, node_limit=500_000):
             path.append(m)
             k = pk
         path.reverse()
-        return {
-            'solved': True,
-            'moves': path,
-            'expanded': expanded,
-            'time': elapsed,
-            'memory_mb': peak / 1024 / 1024,
-            'solution_length': len(path)
-        }
+        return SolverResult(
+            solved = True,
+            moves = path,
+            expanded = expanded,
+            time = elapsed,
+            memory_mb = peak / 1024 / 1024
+        )
 
-    return {
-        'solved': False, 'moves': [], 'expanded': expanded,
-        'time': elapsed, 'memory_mb': peak / 1024 / 1024,
-        'solution_length': 0
-    }
+    return SolverResult(
+        solved = False, moves = [], expanded = expanded,
+        time = elapsed, memory_mb = peak / 1024 / 1024
+    )

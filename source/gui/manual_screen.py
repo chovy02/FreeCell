@@ -5,6 +5,7 @@ from .game_controller import GameController
 from core.state import State
 from .manual_animator import ManualAnimator
 from .dealing_animator import DealingAnimator
+from .manual_solver_helper import ManualSolverHelper
 from .ui_theme import (
     BTN, C_TEXT_PRIMARY, C_TEXT_DIM, C_TEXT_GOLD, C_TEXT_GREEN,
     draw_button, draw_panel, draw_notification, draw_win_overlay
@@ -41,6 +42,7 @@ class ManualScreen:
         self.font_btn  = pygame.font.SysFont('consolas', 15, bold=True)
         self.font_label= pygame.font.SysFont('consolas', 12)
         self.btn_rects = {}
+        self.ai_helper = ManualSolverHelper(self)
 
     # ─── STATE MANAGEMENT ──────────────────────────────────────────────
 
@@ -125,6 +127,9 @@ class ManualScreen:
 
         if self.animator.is_animating():
             return None
+        
+        if self.ai_helper.handle_event(event):
+            return None
 
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE: return "MENU"
@@ -159,13 +164,16 @@ class ManualScreen:
 
         # ── First frame: init board_view layout, then create deal animator ──
         if not self._deal_inited:
-            # Draw once with real state to populate hitboxes, then hide it
             self.board_view.draw_board(screen, width, height, self.state)
             self._deal_inited = True
             self._deal_anim = DealingAnimator(
                 self.deck, self.state, self.board_view, width, height)
-            # Re-draw background to wipe that first frame
             self.theme.draw_background(screen)
+
+        # ── AI Helper active → let it take over the entire screen ──
+        if self.ai_helper.active:
+            self.ai_helper.draw(screen, width, height)
+            return
 
         # ── Choose which state to render ──
         if self._deal_anim and not self._deal_anim.done:

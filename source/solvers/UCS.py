@@ -4,6 +4,8 @@ import tracemalloc
 import heapq
 from core.move_generator import get_valid_moves, apply_move, auto_to_foundation, is_safe_auto
 
+from utils.results import SolverResult
+
 def _move_cost(current_state, new_state):
     """
     - Cost = 0.1: Nước đi auto-safe lên Foundation.
@@ -35,11 +37,10 @@ def solve_ucs(initial_state, node_limit=2_000_000):
         elapsed = time.time() - start_time
         _, peak = tracemalloc.get_traced_memory()
         tracemalloc.stop()
-        return {
-            'solved': True, 'moves': [], 'expanded': 0,
-            'time': elapsed, 'memory_mb': peak / 1024 / 1024,
-            'solution_length': 0
-        }
+        return SolverResult(
+            solved = True, moves = [], expanded = 0,
+            time = elapsed, memory_mb = peak / 1024 / 1024
+        )
 
     root_key = root.get_key()
     
@@ -108,17 +109,15 @@ def solve_ucs(initial_state, node_limit=2_000_000):
             moves_path.append(m)
             k = pk
         moves_path.reverse()
-        return {
-            'solved': True,
-            'moves': moves_path,
-            'expanded': expanded,
-            'time': elapsed,
-            'memory_mb': peak / 1024 / 1024,
-            'solution_length': len(moves_path)
-        }
+        return SolverResult(
+            solved = True,
+            moves = moves_path,
+            expanded = expanded,
+            time = elapsed,
+            memory_mb = peak / 1024 / 1024
+        )
 
-    return {
-        'solved': False, 'moves': [], 'expanded': expanded,
-        'time': elapsed, 'memory_mb': peak / 1024 / 1024,
-        'solution_length': 0
-    }
+    return SolverResult(
+        solved = False, moves = [], expanded = expanded,
+        time = elapsed, memory_mb = peak / 1024 / 1024
+    )

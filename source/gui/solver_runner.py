@@ -1,6 +1,7 @@
 # gui/solver_runner.py
 """Runs solvers in background threads."""
 import threading
+from utils.results import SolverResult
 
 
 class SolverRunner:
@@ -32,17 +33,15 @@ class SolverRunner:
                     from solvers.A_star import solve_astar
                     result = solve_astar(solve_state, node_limit=500_000)
                 else:
-                    result = {'solved': False, 'moves': [], 'expanded': 0,
-                              'time': 0, 'memory_mb': 0, 'solution_length': 0}
+                    result = SolverResult
 
                 result['algorithm'] = self._algorithm
                 self._result = result
                 callback(result)
             except Exception as e:
                 import traceback; traceback.print_exc()
-                result = {'algorithm': self._algorithm, 'solved': False, 'error': str(e),
-                          'moves': [], 'expanded': 0, 'time': 0, 'memory_mb': 0, 'solution_length': 0}
-                self._result = result; callback(result)
+            
+                self._result = SolverResult(error = str(e), algorithm = self._algorithm); callback(self._result)
             finally:
                 self.solving = False
 
@@ -52,5 +51,4 @@ class SolverRunner:
         self.solving = False
 
     def get_status(self):
-        return {'algorithm': self._algorithm, 'solved': False, 'status_text': 'Solving...',
-                'time': 0, 'memory_mb': 0, 'expanded': 0, 'solution_length': 0}
+        return SolverResult(algorithm = self._algorithm, status_text = 'Solving...')

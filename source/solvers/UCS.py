@@ -4,24 +4,28 @@ import tracemalloc
 import heapq
 from core.move_generator import get_valid_moves, apply_move, auto_to_foundation, is_safe_auto
 
-def _move_cost(current_state, new_state):
-    """
-    - Cost = 0.1: Nước đi auto-safe lên Foundation.
-    - Cost = 1.0: Nước đi lên Foundation nhưng không an toàn, hoặc các nước đi thông thường.
-    """
-    if new_state.foundation_count() > current_state.foundation_count():
-        # Tìm xem cọc foundation nào vừa được thêm bài
-        for suit in ['hearts', 'diamonds', 'clubs', 'spades']:
-            if len(new_state.foundations[suit]) > len(current_state.foundations[suit]):
-                card_moved = new_state.foundations[suit][-1]
-                
-                # Truyền lại vào hàm is_safe_auto để check độ an toàn
-                if is_safe_auto(current_state, card_moved):
-                    return 0.1
-                else:
-                    return 1.0
-                    
-    return 1.0
+def _move_cost(current_state, new_state, move):
+    src_type, src_idx, dst_type, dst_idx, num = move
+    
+    # 1. Chi phí cơ bản cho mọi bước đi thủ công
+    cost = 1.0
+    
+    # 2. Phạt NHẸ khi cất bài vào FreeCell (Làm tốn tài nguyên)
+    if dst_type == 'freecell':
+        cost += 0.5  # Phạt 0.5 là mức vừa phải, không làm thuật toán quá "sợ"
+        
+    # 3. Thưởng nhẹ khi lấy bài ra khỏi FreeCell (Giải phóng tài nguyên)
+    elif src_type == 'freecell':
+        cost -= 0.1
+        
+    # 4. Thưởng khi có bài lên Foundation (Tính cả lá thủ công và các lá auto)
+    # Đếm số lượng bài chênh lệch trên Foundation giữa 2 trạng thái
+    fnd_diff = new_state.foundation_count() - current_state.foundation_count()
+    if fnd_diff > 0:
+        cost -= (0.05 * fnd_diff)
+        
+    # 5. Đảm bảo chi phí luôn dương (>= 0.1) để thuật toán UCS/Dijkstra không bị lỗi lặp vô hạn
+    return max(0.1, cost)
 
 
 def solve_ucs(initial_state, node_limit=2_000_000):
@@ -84,8 +88,8 @@ def solve_ucs(initial_state, node_limit=2_000_000):
             new_state, _ = apply_move(current_state, move)
             new_key = new_state.get_key()
             
-            # Tính toán Cost động thay vì fix cứng là 1
-            cost = _move_cost(current_state, new_state)
+            # SỬA DÒNG NÀY: Truyền thêm move vào _move_cost
+            cost = _move_cost(current_state, new_state, move)
             new_cost = current_cost + cost
 
             if new_key not in explored:

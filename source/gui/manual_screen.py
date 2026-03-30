@@ -53,6 +53,7 @@ class ManualScreen:
         if len(self.history) > 1:
             self.history.pop()
             self.state = self.history[-1].clone()
+            self.won = False
 
     def _reset(self):
         self.state   = self.initial_state.clone()

@@ -3,6 +3,8 @@ import time
 import tracemalloc
 from core.move_generator import get_valid_moves, apply_move, auto_to_foundation
 
+from utils.results import SolverResult
+
 
 def solve_dfs(initial_state, depth_limit=300, node_limit=2_000_000):
     tracemalloc.start()
@@ -15,11 +17,10 @@ def solve_dfs(initial_state, depth_limit=300, node_limit=2_000_000):
         elapsed = time.time() - start_time
         _, peak = tracemalloc.get_traced_memory()
         tracemalloc.stop()
-        return {
-            'solved': True, 'moves': [], 'expanded': 0,
-            'time': elapsed, 'memory_mb': peak / 1024 / 1024,
-            'solution_length': 0
-        }
+        return SolverResult(
+            solved = True, moves = [], expanded = 0,
+            time = elapsed, memory_mb = peak / 1024 / 1024
+        )
 
     # Stack: (state, path, depth)
     stack = [(root, [], 0)]
@@ -53,22 +54,20 @@ def solve_dfs(initial_state, depth_limit=300, node_limit=2_000_000):
                 elapsed = time.time() - start_time
                 _, peak = tracemalloc.get_traced_memory()
                 tracemalloc.stop()
-                return {
-                    'solved': True,
-                    'moves': new_path,
-                    'expanded': expanded,
-                    'time': elapsed,
-                    'memory_mb': peak / 1024 / 1024,
-                    'solution_length': len(new_path)
-                }
+                return SolverResult(
+                    solved = True,
+                    moves = new_path,
+                    expanded = expanded,
+                    time = elapsed,
+                    memory_mb = peak / 1024 / 1024
+                )
 
             stack.append((new_state, new_path, depth + 1))
 
     elapsed = time.time() - start_time
     _, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
-    return {
-        'solved': False, 'moves': [], 'expanded': expanded,
-        'time': elapsed, 'memory_mb': peak / 1024 / 1024,
-        'solution_length': 0
-    }
+    return SolverResult(
+        solved = False, moves = [], expanded = expanded,
+        time = elapsed, memory_mb = peak / 1024 / 1024
+    )

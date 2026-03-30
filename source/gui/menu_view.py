@@ -160,11 +160,6 @@ class MenuView:
         div_y = py + 210
         self._draw_divider(screen, cx, div_y, arm=170)
 
-        # Tagline
-        tag_font = pygame.font.SysFont('Arial', 14)
-        tag = tag_font.render("Classic solitaire · AI-powered solving", True, (130, 115, 85))
-        screen.blit(tag, tag.get_rect(center=(cx, div_y + 18)))
-
         # ── Buttons ──────────────────────────────────────────────────
         mouse = pygame.mouse.get_pos()
         draw_button(screen, self.rect_manual, "Manual Play",   BTN_MANUAL, self.font_btn, mouse)

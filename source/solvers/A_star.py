@@ -15,60 +15,62 @@ from utils.results import SolverResult
 
 RV = Rules.RANK_VALUES
 
-def _move_cost(current_state, new_state):
-    """
-    - Cost = 0.5: Nước đi auto-safe lên Foundation (tận dụng is_safe_auto từ move_generator).
-    - Cost = 1.0: Nước đi lên Foundation nhưng không an toàn, hoặc các nước đi thông thường.
-    """
-    if new_state.foundation_count() > current_state.foundation_count():
-        # Tìm xem cọc foundation nào vừa được thêm bài
-        for suit in ['hearts', 'diamonds', 'clubs', 'spades']:
-            if len(new_state.foundations[suit]) > len(current_state.foundations[suit]):
-                # Lấy trực tiếp object Card vừa được đưa lên đích
-                card_moved = new_state.foundations[suit][-1]
-                
-                # Truyền lại vào hàm is_safe_auto để check độ an toàn
-                if is_safe_auto(current_state, card_moved):
-                    return 0.5
-                else:
-                    return 1.0
+def _move_cost(auto_moves_count):
                     
-    return 1.0
+    return 1.0 + (0.5 * auto_moves_count)
 
 def _heuristic(state):
     """
-    Heuristic: Covering Next Foundation Cards
-    Dựa trực tiếp vào state.foundations để xác định mục tiêu cấp bách.
+    Heuristic: Đếm số lượng chuỗi bài hợp lệ đè lên các lá mục tiêu.
+    Đã tối ưu (Cách 2): Truy xuất trực tiếp thuộc tính color và RANK_VALUES,
+    KHÔNG tạo list trung gian để tối đa hóa tốc độ duyệt của A*.
     """
     cards_on_fnd = state.foundation_count()
     base_h = 0.5 * (52 - cards_on_fnd)
     
-    covering_cards = set()
-    
-    # Duyệt qua 4 chất dựa theo định nghĩa trong State
+    # 1. Thu thập tất cả các lá bài mục tiêu đang cần tìm
+    target_cards = []
     for suit in ['hearts', 'diamonds', 'clubs', 'spades']:
-        # Chiều dài mảng foundation + 1 chính là Rank Value của lá bài tiếp theo cần tìm
-        # Ví dụ: list rỗng (len=0) -> cần Át (RV=1)
         next_needed_val = len(state.foundations[suit]) + 1
-        
-        if next_needed_val > 13:
-            continue # Chất này đã hoàn thành xong
-            
-        # Truy tìm vị trí của lá bài mục tiêu này trong các cột Cascades
-        found = False
-        for cas in state.cascades:
-            for pos, card in enumerate(cas):
-                if card.suit == suit and RV[card.rank] == next_needed_val:
-                    # Đã tìm thấy! Thêm TẤT CẢ các lá bài nằm đè lên nó vào danh sách phạt
-                    for i in range(pos + 1, len(cas)):
-                        covering_cards.add(cas[i])
-                    found = True
-                    break # Dừng tìm kiếm trong cột này
-            if found:
-                break # Dừng tìm kiếm trong các cột khác (vì mỗi lá bài là duy nhất)
+        if next_needed_val <= 13:
+            target_cards.append((suit, next_needed_val))
 
-    # Mỗi lá bài ngáng đường bắt buộc phải tốn 1 nước đi (cost = 1.0) để dọn dẹp
-    penalty_h = 1.0 * len(covering_cards)
+    total_sequences = 0
+    
+    # 2. Duyệt từng cột để đếm số chuỗi ngáng đường
+    for cas in state.cascades:
+        deepest_target_pos = -1
+        
+        # Tìm lá mục tiêu bị chôn sâu nhất trong cột này
+        for pos, card in enumerate(cas):
+            if any(card.suit == t_suit and Rules.RANK_VALUES[card.rank] == t_val for t_suit, t_val in target_cards):
+                deepest_target_pos = pos
+                break 
+        
+        if deepest_target_pos != -1:
+            covering_len = len(cas) - 1 - deepest_target_pos
+            if covering_len > 0:
+                # Có bài đè lên -> Khởi điểm là có 1 chuỗi ngáng đường
+                seq_count = 1 
+                
+                # Quét từ dưới lên trên để tìm các "điểm đứt gãy"
+                for i in range(deepest_target_pos + 1, len(cas) - 1):
+                    parent_card = cas[i]
+                    child_card = cas[i+1]
+                    
+                    # --- CÁCH 2: TỐI ƯU HIỆU NĂNG ---
+                    # Dùng thẳng property .color và dictionary RANK_VALUES 
+                    # để so sánh trực tiếp, bỏ qua việc gọi hàm Rules.is_valid_sequence
+                    diff_color = parent_card.color != child_card.color
+                    right_rank = Rules.RANK_VALUES[child_card.rank] == Rules.RANK_VALUES[parent_card.rank] - 1
+                    
+                    if not (diff_color and right_rank):
+                        # Bị đứt gãy (sai màu hoặc sai thứ tự) -> tính là 1 chuỗi mới
+                        seq_count += 1
+                        
+                total_sequences += seq_count
+
+    penalty_h = 0.5 * total_sequences
     
     return base_h + penalty_h
 
@@ -92,10 +94,11 @@ def solve_astar(initial_state, node_limit=500_000):
     
     counter = 0
     open_set = []
-    heapq.heappush(open_set, (_heuristic(root), 0.0, counter, root_key))
+    root_h = _heuristic(root)
+    heapq.heappush(open_set, (root_h, 0.0, counter, root_key))
     
     g_score = {root_key: 0.0}
-    parent = {root_key: None}
+    parent = {root_key: (None, None, 0.0, root_h)} #(parent_key, move, g_score, h_score)
     key_to_state = {root_key: root}
     
     closed = set()
@@ -121,25 +124,26 @@ def solve_astar(initial_state, node_limit=500_000):
         moves = get_valid_moves(current_state)
 
         for move in moves:
-            new_state, _ = apply_move(current_state, move)
+            new_state, auto_moves_list = apply_move(current_state, move)
             new_key = new_state.get_key()
             
             if new_key in closed:
                 continue
 
-            cost = _move_cost(current_state, new_state)
+            cost = _move_cost(len(auto_moves_list))
             new_g = g_score[current_key] + cost
 
             if new_g < g_score.get(new_key, float('inf')):
                 g_score[new_key] = new_g
-                parent[new_key] = (current_key, move)
+                h_score = _heuristic(new_state)
+                f_score = new_g + h_score
+                parent[new_key] = (current_key, move, new_g, h_score)
                 
                 if new_state.is_goal():
                     found_key = new_key
                     break
                 
                 key_to_state[new_key] = new_state
-                f_score = new_g +  _heuristic(new_state)
                 
                 counter += 1
                 heapq.heappush(open_set, (f_score, new_g, counter, new_key))
@@ -153,12 +157,34 @@ def solve_astar(initial_state, node_limit=500_000):
 
     if found_key:
         path = []
+        log = []
         k = found_key
-        while parent[k] is not None:
-            pk, m = parent[k]
+        while parent[k][0] is not None:
+            pk, m, step_g, step_h = parent[k]
             path.append(m)
+            step_f = step_g + step_h
+            
+            # Làm gọn string move cho dễ đọc trên console
+            src_type, src_idx, dst_type, dst_idx, num = m
+            m_str = f"{src_type[:3]}_{src_idx} -> {dst_type[:3]}_{dst_idx} (x{num})"
+            
+            log.append(f"Move: {m_str:<25} | g: {step_g:4.1f} | h: {step_h:4.1f} | f: {step_f:4.1f}")
             k = pk
+            
         path.reverse()
+        log.reverse()
+        
+        # --- IN LOG RA CONSOLE ---
+        print("\n" + "="*60)
+        print(" A* PATH TRACKING (f = g + h) ")
+        print("="*60)
+        root_h = parent[k][3]
+        print(f"Root state {' ':>24} | g:  0.0 | h: {root_h:4.1f} | f: {root_h:4.1f}")
+        for i, line in enumerate(log, 1):
+            print(f"Step {i:02d} | {line}")
+        print("="*60 + "\n")
+        # -------------------------
+
         return SolverResult(
             solved = True,
             moves = path,

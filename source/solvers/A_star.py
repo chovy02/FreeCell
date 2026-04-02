@@ -20,11 +20,7 @@ def _move_cost(auto_moves_count):
     return 1.0 + (0.5 * auto_moves_count)
 
 def _heuristic(state):
-    """
-    Heuristic: Đếm số lượng chuỗi bài hợp lệ đè lên các lá mục tiêu.
-    Đã tối ưu (Cách 2): Truy xuất trực tiếp thuộc tính color và RANK_VALUES,
-    KHÔNG tạo list trung gian để tối đa hóa tốc độ duyệt của A*.
-    """
+    """Count broken sequences covering next foundation targets."""
     cards_on_fnd = state.foundation_count()
     base_h = 0.5 * (52 - cards_on_fnd)
     

@@ -19,9 +19,9 @@ class ThemeManager:
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
         self.assets_folder = os.path.join(self.current_dir, "..", "assets", "backgrounds")
 
-        self.COLOR_BACKGROUND_DEFAULT = (0, 128, 0) #Green background
-        self.COLOR_EMPTY_SLOT = (0, 100, 0) #Darker green for empty slots
-        self.COLOR_SLOT_BORDER = (150, 150, 150) #Gray border for empty slots
+        self.COLOR_BACKGROUND_DEFAULT = (0, 128, 0)
+        self.COLOR_EMPTY_SLOT = (0, 100, 0) 
+        self.COLOR_SLOT_BORDER = (150, 150, 150) 
 
     def load_background(self, filepath, screen_width, screen_height):
         path = os.path.join(self.assets_folder, filepath)

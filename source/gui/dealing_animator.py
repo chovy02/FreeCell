@@ -60,7 +60,7 @@ class _FlyingCard:
                 assets_folders = os.path.join(current_dir, "..", "assets", "cards")
                 _FlyingCard.back_img = pygame.image.load(os.path.join(assets_folders, "card_back.png")).convert_alpha()
             except FileNotFoundError:
-                print("Lỗi: Không tìm thấy ảnh mặt úp, dùng hình chữ nhật dự phòng.")
+                print("Error: Card back image not found, using fallback.")
                 fallback = pygame.Surface((80, 115))
                 fallback.fill((40, 80, 200))
                 pygame.draw.rect(fallback, (255, 255, 255), fallback.get_rect(), 3, border_radius=5)

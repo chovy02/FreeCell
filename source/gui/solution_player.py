@@ -62,12 +62,11 @@ class SolutionPlayer:
         self.target_step = self.current_step
         self.animating = False
 
-    # --- CÁC HÀM ĐIỀU KHIỂN NÚT BẤM ---
     def toggle_play(self):
         if self.target_step > self.current_step: 
-            self.target_step = self.current_step # Pause
+            self.target_step = self.current_step 
         else: 
-            self.target_step = self.milestones[-1] # Play
+            self.target_step = self.milestones[-1] 
             self.current_speed = self.speed_normal
 
     def step_forward(self):
@@ -100,7 +99,7 @@ class SolutionPlayer:
         return self.target_step != self.current_step or self.animating
 
     def get_current_move_index(self):
-        """Hàm này giúp Bảng nước đi biết đang ở bước chính số mấy để sáng đèn"""
+        """Index of the current solver move (for move board highlight)."""
         for i in range(len(self.milestones) - 1):
             if self.current_step < self.milestones[i+1]:
                 return i

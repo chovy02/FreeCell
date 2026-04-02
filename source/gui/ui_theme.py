@@ -5,9 +5,7 @@ Consistent colour palette, polished buttons, animated notifications, info panels
 """
 import pygame
 
-# ═══════════════════════════════════════════════════════════════════════
-# COLOUR PALETTE
-# ═══════════════════════════════════════════════════════════════════════
+# --- Colour palette ---
 
 C_PANEL_BG        = (10, 15, 24)
 C_PANEL_BORDER    = (55, 85, 128)
@@ -35,9 +33,7 @@ BTN = {
     'hint':  (32, 112, 65),
 }
 
-# ═══════════════════════════════════════════════════════════════════════
-# INTERNAL HELPERS
-# ═══════════════════════════════════════════════════════════════════════
+# --- Helpers ---
 
 def _lighten(color, amount):
     return tuple(min(v + amount, 255) for v in color)

@@ -50,11 +50,7 @@ class BoardView:
             self._draw_plain_slot(screen, x, y)
 
     def _draw_empty_cascade_slot(self, screen, x, y):
-        """
-        Empty cascade column looks identical to a freecell slot —
-        reuses the freecell image asset so all empty slots are visually
-        consistent (white-border card frame).
-        """
+        """Reuses freecell slot image for visual consistency."""
         if self.theme and self.theme.freecell_img:
             screen.blit(self.theme.freecell_img, (x, y))
         else:
@@ -89,7 +85,7 @@ class BoardView:
             if pile and (pile[-1].rank, pile[-1].suit) in self.deck:
                 screen.blit(self.deck[(pile[-1].rank, pile[-1].suit)], (col_x, start_y))
 
-        # Foundation counter pill (centred between the two blocks)
+        # Foundation counter pill
         font   = self._get_font()
         count  = state.foundation_count()
         txt    = font.render(f"{count}/52", True, (220, 220, 100))

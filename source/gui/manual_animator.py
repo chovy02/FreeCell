@@ -8,7 +8,6 @@ class ManualAnimator:
         self.anim_speed = 0.12  # Tốc độ bay (giống SolutionPlayer)
 
     def add_animation(self, cards, start_pos, end_pos, apply_func, on_complete=None):
-        """Thêm một animation vào hàng đợi."""
         self.queue.append({
             'cards': cards,
             'start_pos': start_pos,
@@ -22,7 +21,6 @@ class ManualAnimator:
         return self.current_anim is not None or len(self.queue) > 0
 
     def update(self):
-        """Cập nhật tiến trình bay mỗi frame."""
         if not self.current_anim and self.queue:
             self.current_anim = self.queue.pop(0)
 
@@ -42,7 +40,6 @@ class ManualAnimator:
         return False
 
     def draw(self, screen, deck, vertical_spacing):
-        """Vẽ thẻ bài đang bay."""
         if not self.current_anim:
             return
 

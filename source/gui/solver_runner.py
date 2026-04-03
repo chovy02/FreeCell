@@ -31,7 +31,7 @@ class SolverRunner:
                     result = solve_ucs(solve_state, node_limit=2_000_000)
                 elif algorithm == 'astar':
                     from solvers.A_star import solve_astar
-                    result = solve_astar(solve_state, node_limit=500_000)
+                    result = solve_astar(solve_state, node_limit=2_000_000)
                 else:
                     result = SolverResult
 

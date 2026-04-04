@@ -33,7 +33,7 @@ class App:
 
     def _start_game(self, mode):
         state = State()
-        state.initialize_game(5152)
+        state.initialize_game(99101)
         w, h = self.width, self.height
 
         if mode == "MANUAL":

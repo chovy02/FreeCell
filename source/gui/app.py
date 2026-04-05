@@ -42,11 +42,11 @@ class App:
 
     def _start_game(self, mode):
         state = State()
-        
         random_seed = self._get_valid_random_seed()
         print(f"Khởi tạo màn chơi với Seed: {random_seed}") # In ra để tiện theo dõi
         
         state.initialize_game(random_seed)
+
         w, h = self.width, self.height
 
         if mode == "MANUAL":

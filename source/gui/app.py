@@ -1,6 +1,6 @@
-# gui/app.py
 import sys
 import pygame
+import random
 from .asset_manager import CardLoader
 from .theme_manager import ThemeManager
 from .menu_view import MenuView
@@ -8,6 +8,8 @@ from .manual_screen import ManualScreen
 from .ai_screen import AIScreen
 from core.state import State
 
+# Danh sách các màn không thể giải được cần loại bỏ
+EXCLUDED_SEEDS = {11982, 146692, 186216, 455889, 495505, 512118, 517776, 781948}
 
 class App:
     def __init__(self):
@@ -31,9 +33,20 @@ class App:
         self.manual_screen  = None
         self.ai_screen      = None
 
+    def _get_valid_random_seed(self):
+        """Tạo seed ngẫu nhiên < 1.000.000 và không nằm trong danh sách loại trừ"""
+        while True:
+            seed = random.randrange(1000000)
+            if seed not in EXCLUDED_SEEDS:
+                return seed
+
     def _start_game(self, mode):
         state = State()
-        state.initialize_game(5152)
+        
+        random_seed = self._get_valid_random_seed()
+        print(f"Khởi tạo màn chơi với Seed: {random_seed}") # In ra để tiện theo dõi
+        
+        state.initialize_game(random_seed)
         w, h = self.width, self.height
 
         if mode == "MANUAL":
